@@ -7,19 +7,22 @@ This guide will help you set up a consistent development environment across Wind
 All mentees should work in a Unix-like environment to ensure consistency. This means:
 - **Linux users**: Use your native environment
 - **macOS users**: Use your native terminal (macOS is Unix-based)
-- **Windows users**: Set up WSL2 (Windows Subsystem for Linux)
+- **Windows users**: Set up WSL2 (Windows Subsystem for Linux) - **see detailed section below**
 
 ---
 
 ## Table of Contents
 
 1. [Git Repository Setup](#git-repository-setup)
-2. [Windows Setup (WSL2)](#windows-setup-wsl2)
+2. [Windows Setup (WSL2) - DETAILED](#windows-setup-wsl2---detailed)
 3. [macOS Setup](#macos-setup)
 4. [Linux Setup](#linux-setup)
 5. [Common Tools Installation](#common-tools-installation)
-6. [Verify Your Setup](#verify-your-setup)
-7. [Workflow Guidelines](#workflow-guidelines)
+6. [IDE Integration](#ide-integration)
+7. [Demo Programs](#demo-programs)
+8. [Verify Your Setup](#verify-your-setup)
+9. [Workflow Guidelines](#workflow-guidelines)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -68,110 +71,282 @@ git status
 
 ---
 
-## Windows Setup (WSL2)
+## Windows Setup (WSL2) - DETAILED
 
-Windows users must install WSL2 to have a Linux environment.
+Windows users must install WSL2 to have a Linux environment with native performance and access to Linux tools like `perf`.
 
-### Step 1: Install WSL2
+### System Requirements
 
-Open PowerShell as Administrator and run:
+- Windows 10 version 2004+ (Build 19041+) or Windows 11
+- 64-bit processor with virtualization enabled
+- 4GB RAM minimum (8GB recommended)
+
+**Check Version**: Press `Win + R`, type `winver`, press Enter.
+
+### Quick Installation
+
+1. **Open PowerShell as Administrator** (Right-click Start → "Terminal (Admin)")
+
+2. **Install WSL2**
+   ```powershell
+   wsl --install
+   ```
+
+3. **Restart Computer**
+
+4. **First Launch** (Ubuntu auto-starts after restart)
+   - Create username (lowercase, no spaces)
+   - Create password (won't display characters)
+   - Update system:
+     ```bash
+     sudo apt update && sudo apt upgrade -y
+     ```
+
+### Verify Installation
+
+In PowerShell:
+```powershell
+wsl --list --verbose
+```
+
+Should show `VERSION` as `2`. If it shows `1`:
+```powershell
+wsl --set-version Ubuntu 2
+```
+
+### Important: File System Usage
+
+**Always work in WSL file system for performance:**
+
+```bash
+# ✅ Good: Linux home directory
+cd ~/TradeX
+
+# ❌ Bad: Windows file system (10x slower)
+cd /mnt/c/Users/YourName/Documents
+```
+
+**Accessing Files:**
+- **WSL → Windows**: `/mnt/c/` (Windows C: drive)
+- **Windows → WSL**: File Explorer → `\\wsl$\Ubuntu\home\yourusername\`
+
+### Recommended: Windows Terminal
+
+Install from Microsoft Store for better experience:
+- Settings → Startup → Default profile → "Ubuntu"
+
+### Common Issues
+
+**"WSL 2 requires kernel update"**: Download from https://aka.ms/wsl2kernel
+
+**"Virtualization not enabled"**: Enable in BIOS (F2/F10/Del on startup)
+
+**Slow compilation**: Ensure you're in `~/` not `/mnt/c/`
+
+**Perf not working**:
+```bash
+sudo apt install -y linux-tools-$(uname -r)
+echo -1 | sudo tee /proc/sys/kernel/perf_event_paranoid
+```
+
+### Useful Commands
 
 ```powershell
-wsl --install
+# PowerShell
+wsl --shutdown          # Restart WSL
+wsl --list --verbose    # Check status
 ```
-
-This installs WSL2 with Ubuntu by default. **Restart your computer** after installation.
-
-### Step 2: Set Up Ubuntu
-
-1. After restart, Ubuntu will launch automatically
-2. Create a username and password (remember these!)
-3. Update the system:
 
 ```bash
-sudo apt update && sudo apt upgrade -y
+# Inside WSL
+sudo apt update && sudo apt upgrade -y  # Update packages
+df -h                                     # Check disk space
 ```
 
-### Step 3: Install Windows Terminal (Recommended)
-
-Download from Microsoft Store: [Windows Terminal](https://aka.ms/terminal)
-
-This provides a better terminal experience than the default Ubuntu window.
-
-### Step 4: Access WSL2 from VS Code (Optional but Recommended)
-
-1. Install [Visual Studio Code](https://code.visualstudio.com/)
-2. Install the "WSL" extension in VS Code
-3. Open VS Code and press `Ctrl+Shift+P`
-4. Type "WSL: Connect to WSL" and press Enter
-5. This opens VS Code connected to your Linux environment
-
-### Step 5: Set Up Git in WSL2
-
-```bash
-# Configure Git
-git config --global user.name "Your Name"
-git config --global user.email "your.email@example.com"
-
-# Generate SSH key for GitHub (optional but recommended)
-ssh-keygen -t ed25519 -C "your.email@example.com"
-# Press Enter for all prompts to use defaults
-
-# Display your public key
-cat ~/.ssh/id_ed25519.pub
-# Copy this and add to GitHub: Settings → SSH and GPG keys → New SSH key
-```
-
-### WSL2 File System Notes
-
-- Your Windows files are at: `/mnt/c/Users/YourUsername/`
-- Your Linux home is at: `~` or `/home/yourusername/`
-- **Best Practice**: Clone repositories in the Linux file system (`~`) for better performance
-- Access WSL files from Windows: `\\wsl$\Ubuntu\home\yourusername\`
+After setup, continue to [Git Repository Setup](#git-repository-setup).
 
 ---
 
-## macOS Setup
+## macOS Setup - DETAILED
 
-macOS is Unix-based, so setup is straightforward.
+macOS is Unix-based with native development tools, making it ideal for C++ multi-threading work.
 
-### Step 1: Install Homebrew (Package Manager)
+### System Requirements
 
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
+- macOS 10.15 (Catalina) or newer
+- At least 4GB free disk space
+- Administrator access
 
-Follow the on-screen instructions to add Homebrew to your PATH.
+**Check Version**: Apple menu → About This Mac
 
-### Step 2: Install Command Line Tools
+### Step 1: Install Command Line Tools
+
+This installs essential compilers and tools:
 
 ```bash
 xcode-select --install
 ```
 
-Click "Install" when prompted.
+Click "Install" when prompted (downloads ~1-2GB, takes 10-15 minutes).
 
-### Step 3: Set Up Git
+**Verify installation:**
+```bash
+xcode-select -p
+# Should show: /Library/Developer/CommandLineTools
+
+g++ --version
+# Should show: Apple clang version 14.0 or higher
+```
+
+### Step 2: Install Homebrew (Package Manager)
+
+Homebrew simplifies installing additional tools:
 
 ```bash
-# Configure Git
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+**Important**: Follow the on-screen "Next steps" to add Homebrew to PATH.
+
+For Apple Silicon (M1/M2/M3), add to `~/.zprofile`:
+```bash
+echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+eval "$(/opt/homebrew/bin/brew shellenv)"
+```
+
+For Intel Macs, it's added automatically to `/usr/local/bin`.
+
+**Verify installation:**
+```bash
+brew --version
+# Should show: Homebrew 4.x or higher
+```
+
+### Step 3: Install Additional Development Tools
+
+```bash
+# Install GNU GCC (alternative to Clang)
+brew install gcc
+
+# Install CMake and other build tools
+brew install cmake gdb
+
+# Install profiling and analysis tools
+brew install valgrind htop
+
+# Install better terminal (optional)
+brew install --cask iterm2
+```
+
+**Note**: `gdb` on macOS requires code signing. For most tasks, `lldb` (built-in) works fine.
+
+### Step 4: Configure Git
+
+```bash
+# Set your identity
 git config --global user.name "Your Name"
 git config --global user.email "your.email@example.com"
 
-# Generate SSH key for GitHub (optional but recommended)
+# Generate SSH key for GitHub
 ssh-keygen -t ed25519 -C "your.email@example.com"
-# Press Enter for all prompts to use defaults
+# Press Enter for all prompts (uses default location ~/.ssh/id_ed25519)
 
-# Display your public key
-cat ~/.ssh/id_ed25519.pub
-# Copy this and add to GitHub: Settings → SSH and GPG keys → New SSH key
+# Start SSH agent
+eval "$(ssh-agent -s)"
+
+# Add SSH key to agent
+ssh-add ~/.ssh/id_ed25519
+
+# Copy public key to clipboard
+pbcopy < ~/.ssh/id_ed25519.pub
+# Now paste this into GitHub: Settings → SSH and GPG keys → New SSH key
+
+# Test GitHub connection
+ssh -T git@github.com
+# Should say: "Hi username! You've successfully authenticated"
 ```
 
-### macOS Notes
+### macOS Development Notes
 
-- Default shell is `zsh` (similar to bash)
-- Use Terminal.app or install [iTerm2](https://iterm2.com/) for better experience
-- File paths use forward slashes like Linux: `/Users/yourname/`
+**Shell**: Default is `zsh` (similar to bash)
+- Config file: `~/.zshrc` (like `~/.bashrc` in Linux)
+- Most bash commands work identically
+
+**File System**:
+- Home directory: `/Users/yourname/` or `~`
+- Case-insensitive by default (but case-preserving)
+- Use forward slashes for paths
+
+**Terminal Options**:
+- **Terminal.app**: Built-in, works well
+- **iTerm2**: Feature-rich alternative (split panes, search, themes)
+
+**Compiler Notes**:
+- Default `g++` is actually Clang (Apple's compiler)
+- For GNU GCC, use `g++-13` or `gcc-13` (version from Homebrew)
+- Both work for the curriculum
+
+### Profiling on macOS
+
+Since `perf` is Linux-specific, use these alternatives:
+
+1. **Instruments** (GUI, comes with Xcode):
+   ```bash
+   # Install Xcode (optional, large download)
+   xcode-select --install
+   ```
+   Launch: Applications → Xcode → Open Developer Tool → Instruments
+
+2. **Activity Monitor** (Built-in):
+   - Applications → Utilities → Activity Monitor
+   - View CPU, memory, threads in real-time
+
+3. **time command** (Built-in):
+   ```bash
+   time ./your_program
+   ```
+
+4. **Valgrind** (Installed via Homebrew):
+   ```bash
+   valgrind --tool=callgrind ./your_program
+   ```
+
+### Common Issues
+
+**"xcode-select: error: command line tools are already installed"**
+- Already set up! Verify with `g++ --version`
+
+**"command not found: brew"**
+- Add to PATH (see Homebrew installation output)
+- Restart terminal after adding to PATH
+
+**"Permission denied" when using gdb**
+- Use `lldb` instead: `lldb ./program`
+- Or code-sign gdb (complex, usually unnecessary)
+
+**Compilation errors with pthread**
+- macOS Clang handles threading automatically
+- Still use `-pthread` flag for compatibility
+
+### Useful Commands
+
+```bash
+# Check architecture (Intel vs Apple Silicon)
+uname -m
+# x86_64 = Intel, arm64 = Apple Silicon
+
+# Update Homebrew packages
+brew update && brew upgrade
+
+# View CPU info
+sysctl -n machdep.cpu.brand_string
+sysctl -n hw.ncpu  # Number of CPUs
+
+# Monitor processes
+top  # or: htop (if installed)
+```
+
+After setup, continue to [Git Repository Setup](#git-repository-setup).
 
 ---
 
@@ -282,6 +457,108 @@ sudo dnf install -y git vim nano htop tree
 # Arch
 sudo pacman -S git vim nano htop tree
 ```
+
+---
+
+## IDE Integration
+
+Choose your preferred development environment. All options work across platforms.
+
+### Option 1: Visual Studio Code (Recommended for All Platforms)
+
+#### Windows (WSL2)
+
+1. **Install VS Code on Windows**: https://code.visualstudio.com/
+
+2. **Install WSL Extension**
+   - Open VS Code
+   - Extensions (`Ctrl+Shift+X`)
+   - Search "WSL"
+   - Install "WSL" by Microsoft
+
+3. **Connect to WSL**
+   - Press `Ctrl+Shift+P`
+   - Type "WSL: Connect to WSL"
+   - Or click green icon in bottom-left → "Connect to WSL"
+
+4. **Open Project**
+   - In WSL-connected VS Code: `Ctrl+O`
+   - Navigate to `/home/yourusername/TradeX`
+
+5. **Install C++ Extensions in WSL**
+   - "C/C++" by Microsoft
+   - "CMake Tools"
+
+6. **Configure IntelliSense**
+   - Open any `.cpp` file
+   - Select "g++" when prompted
+
+#### macOS and Linux
+
+1. **Install VS Code**: https://code.visualstudio.com/
+
+2. **Install C++ Extensions**
+   - "C/C++" by Microsoft
+   - "CMake Tools"
+
+3. **Open Project**
+   - File → Open Folder
+   - Navigate to `TradeX`
+
+### Option 2: CLion (All Platforms)
+
+1. **Install CLion**: https://www.jetbrains.com/clion/
+   - Free for students: https://www.jetbrains.com/student/
+
+2. **Configure Toolchain**
+   - **Windows**: File → Settings → Toolchains → Add "WSL"
+   - **macOS/Linux**: Auto-detected, or manually set to system GCC
+
+3. **Open Project**
+   - File → Open
+   - **Windows**: Navigate to `\\wsl$\Ubuntu\home\yourusername\TradeX`
+   - **macOS/Linux**: Navigate to `~/TradeX`
+
+### Option 3: Terminal-Based Editors (vim/nano)
+
+Lightweight and available on all platforms:
+
+```bash
+cd ~/TradeX
+vim main.cpp  # or nano main.cpp
+```
+
+**Recommended for**: Quick edits, remote development, minimalist workflow
+
+---
+
+## Demo Programs
+
+Before starting the tasks, explore the demo programs in the `demos/` directory to understand threading and timing concepts.
+
+### Available Demos
+
+1. **`thread_demo.cpp`** - Combined threading and timing
+2. **`thread_basics.cpp`** - Comprehensive thread creation patterns
+3. **`timing_precision.cpp`** - Deep dive into chrono timing
+
+### Running the Demos
+
+```bash
+cd ~/TradeX/demos
+
+# Compile all demos
+g++ -std=c++17 -pthread -O2 thread_demo.cpp -o thread_demo
+g++ -std=c++17 -pthread -O2 thread_basics.cpp -o thread_basics
+g++ -std=c++17 -pthread -O2 timing_precision.cpp -o timing_precision
+
+# Run them
+./thread_demo
+./thread_basics
+./timing_precision
+```
+
+See `demos/README.md` for detailed descriptions of each demo.
 
 ---
 
@@ -440,31 +717,59 @@ git diff
 
 ## Troubleshooting
 
-### WSL2 Issues
+### All Platforms
 
-**Problem**: `perf` doesn't work in WSL2
+**Problem**: Thread library not found
 ```bash
-# Install WSL2 kernel with perf support
-sudo apt install linux-tools-generic
+# Always compile with -pthread flag
+g++ -std=c++17 -pthread main.cpp -o program
 ```
 
-**Problem**: File permissions issues between Windows and WSL2
+**Problem**: Git authentication issues
+```bash
+# Verify SSH key exists
+ls ~/.ssh/
+# Should show id_ed25519 and id_ed25519.pub
+
+# If missing, generate:
+ssh-keygen -t ed25519 -C "your.email@example.com"
+
+# Display and add to GitHub:
+cat ~/.ssh/id_ed25519.pub
+
+# Test connection:
+ssh -T git@github.com
+```
+
+### Windows/WSL2 Specific
+
+**Problem**: `perf` doesn't work
+```bash
+sudo apt install -y linux-tools-$(uname -r)
+echo -1 | sudo tee /proc/sys/kernel/perf_event_paranoid
+```
+
+**Problem**: File permission issues
 ```bash
 # Work in WSL2 file system (~/) instead of /mnt/c/
+pwd  # Should show /home/yourname, NOT /mnt/c/
 ```
 
 **Problem**: Slow performance
 ```bash
-# Ensure you're in WSL2 file system, not Windows mounted drives
-pwd
-# Should show /home/yourname, NOT /mnt/c/
+# Ensure you're in WSL2 file system
+# NOT in Windows mounted drives (/mnt/c/)
 ```
 
-### macOS Issues
+**Problem**: Can't find WSL files in Windows
+- File Explorer → Address bar: `\\wsl$\Ubuntu\home\yourusername`
+
+### macOS Specific
 
 **Problem**: `perf` not available
 ```bash
-# Use Xcode Instruments instead, or install valgrind:
+# Use Xcode Instruments (comes with Xcode)
+# Or install valgrind:
 brew install valgrind
 ```
 
@@ -474,18 +779,15 @@ brew install valgrind
 xcode-select --install
 ```
 
-### Linux Issues
+### Linux Specific
 
 **Problem**: Permission denied for `perf`
 ```bash
 # Temporarily allow perf for all users
 echo -1 | sudo tee /proc/sys/kernel/perf_event_paranoid
-```
 
-**Problem**: Thread library not found
-```bash
-# Make sure to compile with -pthread flag
-g++ -std=c++17 -pthread main.cpp -o program
+# To make permanent, add to /etc/sysctl.conf:
+echo "kernel.perf_event_paranoid = -1" | sudo tee -a /etc/sysctl.conf
 ```
 
 ---
@@ -505,17 +807,22 @@ If you encounter issues:
 
 ---
 
-## Summary Checklist
+## Ready to Start
 
-Before starting the tasks, ensure:
+Once you've completed the setup for your platform, you should have:
 
-- [ ] WSL2 installed (Windows users only)
-- [ ] Git configured with your name and email
-- [ ] Repository cloned
-- [ ] Personal branch created and pushed
-- [ ] C++ compiler (g++) installed and working
-- [ ] Can compile with `-std=c++17 -pthread` flags
-- [ ] `perf` tools installed (Linux/WSL2) or alternative profiler (macOS)
-- [ ] Test program compiles and runs successfully
+**Platform-specific environment**: WSL2 (Windows), native Unix terminal (macOS/Linux) with all system updates applied.
 
-**You're now ready to start the tasks!** Navigate to [README.md](README.md) to begin.
+**Git configured**: Your identity set globally, SSH key generated and added to GitHub for authentication.
+
+**Repository ready**: TradeX cloned to `~/TradeX`, checked out to `learning_phase_tasks` branch, with your personal branch (`yourname`) created and pushed to remote.
+
+**Development tools**: C++ compiler (g++) working with `-std=c++17 -pthread` support, profiling tools (`perf` on Linux/WSL2, Instruments/valgrind on macOS), and your preferred IDE or editor configured.
+
+**Verification passed**: Test compilation successful, demo programs running without errors, git operations (commit, push) working correctly.
+
+### Next Steps
+
+1. **Explore the demos**: Run the programs in `demos/` directory to understand threading and timing concepts
+2. **Start the curriculum**: Navigate to [README.md](README.md) and begin with Q0 (perf profiling prerequisite)
+3. **Follow the workflow**: Use the daily workflow guidelines above for committing and tracking your progress
