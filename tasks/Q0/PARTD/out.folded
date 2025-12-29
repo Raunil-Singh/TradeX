@@ -1,0 +1,2 @@
+main;_start;__libc_start_main@@GLIBC_2.34;slow_function 47338164
+main;_start;__libc_start_main@@GLIBC_2.34;very_slow_function 1986401912

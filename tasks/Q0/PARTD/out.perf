@@ -1,0 +1,400 @@
+main  128887 13677.717842:    5050505 cycles:P: 
+	    64de7a4ff280 slow_function()+0x30 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.720860:    7803573 cycles:P: 
+	    64de7a4ff280 slow_function()+0x30 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.726206:   13845233 cycles:P: 
+	    64de7a4ff280 slow_function()+0x30 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.734172:   20638853 cycles:P: 
+	    64de7a4ff280 slow_function()+0x30 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.743544:   24272800 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.753426:   25595800 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.763469:   26016779 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.773556:   26134814 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.783654:   26163296 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.793756:   26172037 cycles:P: 
+	    64de7a4ff32f very_slow_function()+0x3f (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.803859:   26174351 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.813961:   26176183 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.824064:   26175789 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.834168:   26177785 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.844271:   26176323 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.854374:   26176164 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.864477:   26176939 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.874579:   26176767 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.884683:   26179021 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.894786:   26176533 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.904889:   26177026 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.915006:   26175962 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.925103:   26159540 cycles:P: 
+	    64de7a4ff32f very_slow_function()+0x3f (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.935205:   26172103 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.945307:   26176236 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.955410:   26176507 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.965513:   26176709 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.975623:   26176918 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.985721:   26163095 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13677.995822:   26173047 cycles:P: 
+	    64de7a4ff32f very_slow_function()+0x3f (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.005925:   26175961 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.016028:   26175613 cycles:P: 
+	    64de7a4ff32f very_slow_function()+0x3f (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.026131:   26175837 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.036244:   26177608 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.046349:   26155208 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.056460:   26185203 cycles:P: 
+	    64de7a4ff32f very_slow_function()+0x3f (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.066556:   26156216 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.076656:   26168859 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.086758:   26174872 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.096861:   26174888 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.106975:   26176014 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.117073:   26161034 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.127175:   26172653 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.137278:   26175873 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.147383:   26178080 cycles:P: 
+	    64de7a4ff32f very_slow_function()+0x3f (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.157485:   26171413 cycles:P: 
+	    64de7a4ff32f very_slow_function()+0x3f (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.167587:   26173287 cycles:P: 
+	    64de7a4ff32f very_slow_function()+0x3f (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.177689:   26175096 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.187792:   26176128 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.197896:   26177450 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.207998:   26175810 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.218101:   26175803 cycles:P: 
+	    64de7a4ff32f very_slow_function()+0x3f (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.228242:   26176572 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.238309:   26084772 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.248403:   26154171 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.258505:   26171836 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.268607:   26174125 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.278710:   26175973 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.288812:   26176404 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.298915:   26177255 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.309018:   26176925 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.319122:   26176249 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.329225:   26176235 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.339328:   26176906 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.349431:   26176627 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.359545:   26177156 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.369641:   26157880 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.379742:   26171285 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.389844:   26175532 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.399947:   26176390 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.410050:   26177599 cycles:P: 
+	    64de7a4ff32f very_slow_function()+0x3f (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.420164:   26177201 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.430257:   26145772 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.440357:   26169980 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.450459:   26174945 cycles:P: 
+	    64de7a4ff32f very_slow_function()+0x3f (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.460563:   26175078 cycles:P: 
+	    64de7a4ff32f very_slow_function()+0x3f (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.470665:   26173095 cycles:P: 
+	    64de7a4ff32f very_slow_function()+0x3f (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.480767:   26174990 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.490878:   26176229 cycles:P: 
+	    64de7a4ff32b very_slow_function()+0x3b (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
+main  128887 13678.500980:   26167300 cycles:P: 
+	    64de7a4ff332 very_slow_function()+0x42 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+	    791c1cc2a28b __libc_start_main@@GLIBC_2.34+0x8b (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    64de7a4ff105 _start+0x25 (/home/arnavmiranda/projects/TradeX/tasks/Q0/PARTB/main)
+
