@@ -1,0 +1,10 @@
+# Mac System Files
+.DS_Store
+
+# VS Code Settings
+.vscode/
+
+# C++ Compiled Files (Junk)
+*.o
+*.out
+*.dSYM/
