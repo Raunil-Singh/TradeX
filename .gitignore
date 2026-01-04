@@ -1,0 +1,4 @@
+*.trace/
+build/
+.DS_Store
+*.entitlements
