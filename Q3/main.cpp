@@ -21,9 +21,6 @@ struct ThreadMetrics
     ThreadMetrics() : operations(0), wait_time_us(0.0), computed_average(0.0), thread_id(0) {}
 };
 
-//============================================================
-//                 MUTEX ONLY VERSION
-//============================================================
 std::mutex mtx_rw_entry;
 int reader_count = 0;
 std::mutex mtx_reader_count;
@@ -127,41 +124,29 @@ void run_mutex_version()
     double total_wait_time = 0.0;
     double sum_averages = 0.0;
 
-    std::cout << "\nReader Threads:\n";
+    std::cout << "Reader Threads:\n";
     for (const auto &m : reader_metrics)
     {
         total_reads += m.operations;
         total_wait_time += m.wait_time_us;
         sum_averages += m.computed_average;
-        std::cout << "  Thread " << m.thread_id
-                  << " - Reads: " << m.operations
-                  << ", Avg Price: " << std::fixed << std::setprecision(2) << m.computed_average
-                  << ", Wait Time: " << std::fixed << std::setprecision(2) << (m.wait_time_us / 1000.0) << " ms\n";
+        std::cout << "Thread " << m.thread_id<< " - Reads: " << m.operations<< ", Avg Price: " << std::fixed << std::setprecision(2) << m.computed_average<< ", Wait Time: " << std::fixed << std::setprecision(2) << (m.wait_time_us / 1000.0) << " ms\n";
     }
 
-    std::cout << "\nWriter Threads:\n";
+    std::cout << "Writer Threads:\n";
     for (const auto &m : writer_metrics)
     {
         total_writes += m.operations;
         total_wait_time += m.wait_time_us;
-        std::cout << "  Thread " << m.thread_id
-                  << " - Writes: " << m.operations
-                  << ", Wait Time: " << std::fixed << std::setprecision(2) << (m.wait_time_us / 1000.0) << " ms\n";
+        std::cout << "Thread " << m.thread_id<< " - Writes: " << m.operations<< ", Wait Time: " << std::fixed << std::setprecision(2) << (m.wait_time_us / 1000.0) << " ms\n";
     }
 
-    std::cout << "\n--- Summary ---\n";
     std::cout << "Execution Time: " << duration<< " ms\n";
     std::cout << "Total Reads: " << total_reads << "\n";
     std::cout << "Total Writes: " << total_writes << "\n";
     std::cout << "Average Read Value: " << std::fixed << std::setprecision(4) << (sum_averages / READER_COUNT) << "\n";
-    std::cout << "Average Wait Time per Thread: "
-              << std::fixed << std::setprecision(2)
-              << (total_wait_time / (READER_COUNT + WRITER_COUNT) / 1000.0) << " ms\n";
+    std::cout << "Average Wait Time per Thread: "<< std::fixed << std::setprecision(2)<< (total_wait_time / (READER_COUNT + WRITER_COUNT) / 1000.0) << " ms\n";
 }
-
-//============================================================
-//                    SHARED MUTEX VERSION
-//============================================================
 
 std::shared_mutex shared_mtx;
 thread_local std::mt19937 rng2(std::random_device{}());
@@ -252,41 +237,29 @@ void run_shared_mutex_version()
     double total_wait_time = 0.0;
     double sum_averages = 0.0;
 
-    std::cout << "\nReader Threads:\n";
+    std::cout << "Reader Threads:\n";
     for (const auto &m : reader_metrics)
     {
         total_reads += m.operations;
         total_wait_time += m.wait_time_us;
         sum_averages += m.computed_average;
-        std::cout << "  Thread " << m.thread_id
-                  << " - Reads: " << m.operations
-                  << ", Avg Price: " << std::fixed << std::setprecision(2) << m.computed_average
-                  << ", Wait Time: " << std::fixed << std::setprecision(2) << (m.wait_time_us / 1000.0) << " ms\n";
+        std::cout << "Thread " << m.thread_id<< " - Reads: " << m.operations<< ", Avg Price: " << std::fixed << std::setprecision(2) << m.computed_average<< ", Wait Time: " << std::fixed << std::setprecision(2) << (m.wait_time_us / 1000.0) << " ms\n";
     }
 
-    std::cout << "\nWriter Threads:\n";
+    std::cout << "Writer Threads:\n";
     for (const auto &m : writer_metrics)
     {
         total_writes += m.operations;
         total_wait_time += m.wait_time_us;
-        std::cout << "  Thread " << m.thread_id
-                  << " - Writes: " << m.operations
-                  << ", Wait Time: " << std::fixed << std::setprecision(2) << (m.wait_time_us / 1000.0) << " ms\n";
+        std::cout << "Thread " << m.thread_id<< " - Writes: " << m.operations<< ", Wait Time: " << std::fixed << std::setprecision(2) << (m.wait_time_us / 1000.0) << " ms\n";
     }
 
-    std::cout << "\n--- Summary ---\n";
     std::cout << "Execution Time: " << duration << " ms\n";
     std::cout << "Total Reads: " << total_reads << "\n";
     std::cout << "Total Writes: " << total_writes << "\n";
-    std::cout << "Average Read Value: " << std::fixed << std::setprecision(4) << (sum_averages / READER_COUNT) << "\n";
-    std::cout << "Average Wait Time per Thread: "
-              << std::fixed << std::setprecision(2)
-              << (total_wait_time / (READER_COUNT + WRITER_COUNT) / 1000.0) << " ms\n";
+    std::cout << "Average Read Value: " << std::fixed << std::setprecision(4) << (sum_averages / READER_COUNT) << "\n"<< std::fixed << std::setprecision(2)<< (total_wait_time / (READER_COUNT + WRITER_COUNT) / 1000.0) << " ms\n";
 }
 
-//============================================================
-//                    FINE GRAINED VERSION
-//============================================================
 
 std::mutex segmented[10];
 thread_local std::mt19937 rng3(std::random_device{}());
@@ -378,42 +351,36 @@ void run_segmented_mutex_version()
     double total_wait_time = 0.0;
     double sum_averages = 0.0;
 
-    std::cout << "\nReader Threads:\n";
+    std::cout << "Reader Threads:\n";
     for (const auto &m : reader_metrics)
     {
         total_reads += m.operations;
         total_wait_time += m.wait_time_us;
         sum_averages += m.computed_average;
-        std::cout << "  Thread " << m.thread_id
-                  << " - Reads: " << m.operations
-                  << ", Avg Price: " << std::fixed << std::setprecision(2) << m.computed_average
-                  << ", Wait Time: " << std::fixed << std::setprecision(2) << (m.wait_time_us / 1000.0) << " ms\n";
+        std::cout << " Thread " << m.thread_id<< " - Reads: " << m.operations<< ", Avg Price: " << std::fixed << std::setprecision(2) << m.computed_average<< ", Wait Time: " << std::fixed << std::setprecision(2) << (m.wait_time_us / 1000.0) << " ms\n";
     }
 
-    std::cout << "\nWriter Threads:\n";
+    std::cout << "Writer Threads:\n";
     for (const auto &m : writer_metrics)
     {
         total_writes += m.operations;
         total_wait_time += m.wait_time_us;
-        std::cout << "  Thread " << m.thread_id
-                  << " - Writes: " << m.operations
-                  << ", Wait Time: " << std::fixed << std::setprecision(2) << (m.wait_time_us / 1000.0) << " ms\n";
+        std::cout << "Thread " << m.thread_id<< " - Writes: " << m.operations<< ", Wait Time: " << std::fixed << std::setprecision(2) << (m.wait_time_us / 1000.0) << " ms\n";
     }
 
-    std::cout << "\n--- Summary ---\n";
     std::cout << "Execution Time: " << duration << " ms\n";
     std::cout << "Total Reads: " << total_reads << "\n";
     std::cout << "Total Writes: " << total_writes << "\n";
     std::cout << "Average Read Value: " << std::fixed << std::setprecision(4) << (sum_averages / READER_COUNT) << "\n";
-    std::cout << "Average Wait Time per Thread: "
-              << std::fixed << std::setprecision(2)
-              << (total_wait_time / (READER_COUNT + WRITER_COUNT) / 1000.0) << " ms\n";
+    std::cout << "Average Wait Time per Thread: "<< std::fixed << std::setprecision(2)<< (total_wait_time / (READER_COUNT + WRITER_COUNT) / 1000.0) << " ms\n";
 }
 
 int main()
 {
     run_mutex_version();
+    std::cout<<std::endl;
     run_shared_mutex_version();
+    std::cout<<std::endl;
     run_segmented_mutex_version();
     return 0;
 }
