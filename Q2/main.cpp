@@ -46,13 +46,13 @@ void submitTask(std::function<void()> task)
 
 void orderTask(int task_id)
 {
-    std::mt19937 rng(task_id);
+    std::mt19937 mt(task_id);
     std::uniform_int_distribution<int> dist(1,100);
 
     long long sum = 0;
     for (int i = 0; i < 100'000; i++)
     {
-        sum += dist(rng);
+        sum += dist(mt);
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
