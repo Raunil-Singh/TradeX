@@ -10,6 +10,7 @@
 
 std::queue<std::function<void()>> tasks;
 std::mutex queue_mutex;
+std::mutex print_lock;
 std::condition_variable condition;
 bool stop = false;
 
@@ -38,7 +39,7 @@ void workerThread()
 void submitTask(std::function<void()> task)
 {
     {
-        std::lock_guard<std::mutex> lock(queue_mutex);
+        std::lock_guard<std::mutex> guard(queue_mutex);
         tasks.push(std::move(task));
     }
     condition.notify_one();
@@ -56,6 +57,8 @@ void orderTask(int task_id)
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    std::lock_guard<std::mutex> print_guard(print_lock);
     std::cout << "Task " << task_id << " processed by thread " << std::this_thread::get_id() << ", result = " << sum << "\n";
 }
 
@@ -79,7 +82,7 @@ int main()
     }
 
     {
-        std::lock_guard<std::mutex> lock(queue_mutex);
+        std::lock_guard<std::mutex> guard(queue_mutex);
         stop = true;
     }
 
