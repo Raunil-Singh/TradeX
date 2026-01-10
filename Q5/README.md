@@ -1,0 +1,2 @@
+note:
+Upon running the code several times, it can be observed that the naive implementation very rarely enters the state of deadlock, as seen in the output screenshots. This is entirely dependant on timing and randomness factors, and the idea of the naive implementation having drawbacks can still be seen through the count output displayed being far below the other 2 methods.
