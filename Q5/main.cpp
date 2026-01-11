@@ -14,7 +14,7 @@ std::vector<std::mutex> forks(PHILOSOPHER_COUNT);
 std::vector<std::atomic<int>> eat_count(PHILOSOPHER_COUNT);
 std::vector<std::atomic<long long>> wait_time_ns(PHILOSOPHER_COUNT);
 
-int random_between(int low, int high)
+int randomBetween(int low, int high)
 {
     static thread_local std::mt19937 mt(std::random_device{}());
     std::uniform_int_distribution<int> dist(low, high);
@@ -28,7 +28,7 @@ void naiveTrial(int id, std::atomic<bool>& stop)
 
     while (!stop)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(random_between(100, 300)));
+        std::this_thread::sleep_for(std::chrono::milliseconds(randomBetween(100, 300)));
 
         auto wait_start = std::chrono::high_resolution_clock::now();
 
@@ -39,7 +39,7 @@ void naiveTrial(int id, std::atomic<bool>& stop)
 
         wait_time_ns[id] += std::chrono::duration_cast<std::chrono::nanoseconds>(wait_end - wait_start).count();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(random_between(100, 200)));
+        std::this_thread::sleep_for(std::chrono::milliseconds(randomBetween(100, 200)));
 
         eat_count[id]++;
 
@@ -48,7 +48,7 @@ void naiveTrial(int id, std::atomic<bool>& stop)
     }
 }
 
-bool deadlock_detected(const std::vector<std::atomic<int>>& counts, const std::vector<int>& last_counts)
+bool deadlockDetected(const std::vector<std::atomic<int>>& counts, const std::vector<int>& last_counts)
 {
     for (int i = 0; i < PHILOSOPHER_COUNT; i++)
     {
@@ -65,7 +65,7 @@ void orderedTrial(int philosopher_id, std::atomic<bool>& stop)
 
     while (!stop)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(random_between(100, 300)));
+        std::this_thread::sleep_for(std::chrono::milliseconds(randomBetween(100, 300)));
 
         auto wait_start = std::chrono::high_resolution_clock::now();
 
@@ -84,7 +84,7 @@ void orderedTrial(int philosopher_id, std::atomic<bool>& stop)
 
         wait_time_ns[philosopher_id] += std::chrono::duration_cast<std::chrono::nanoseconds>(wait_end - wait_start).count();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(random_between(100, 200)));
+        std::this_thread::sleep_for(std::chrono::milliseconds(randomBetween(100, 200)));
 
         eat_count[philosopher_id]++;
 
@@ -102,7 +102,7 @@ void timeoutTrial(int id, std::atomic<bool>& stop)
 
     while (!stop)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(random_between(100, 300)));
+        std::this_thread::sleep_for(std::chrono::milliseconds(randomBetween(100, 300)));
 
         auto wait_start = std::chrono::high_resolution_clock::now();
 
@@ -118,7 +118,7 @@ void timeoutTrial(int id, std::atomic<bool>& stop)
 
         wait_time_ns[id] += std::chrono::duration_cast<std::chrono::nanoseconds>(wait_end - wait_start).count();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(random_between(100, 200)));
+        std::this_thread::sleep_for(std::chrono::milliseconds(randomBetween(100, 200)));
 
         eat_count[id]++;
 
@@ -154,7 +154,7 @@ int main()
         std::this_thread::sleep_for(std::chrono::seconds(5));
 
         stop = true;
-        if (deadlock_detected(eat_count, last_counts))
+        if (deadlockDetected(eat_count, last_counts))
         {
             std::cout << "\nNaive version deadlocked\n\n";
             for (auto& t : philosophers) t.detach();
