@@ -139,7 +139,7 @@ void atomicRelaxed()
 
 
 template <typename Worker>
-void run_test(const std::string& name, Worker worker, bool use_atomic)
+void run(const std::string& name, Worker worker, bool use_atomic)
 {
     order_count_int = 0;
     trade_count_int = 0;
@@ -164,8 +164,7 @@ void run_test(const std::string& name, Worker worker, bool use_atomic)
                     : order_count_int + trade_count_int + cancel_count_int;
 
     double seconds = time_ms / 1000.0;
-    double throughput =
-        (THREAD_COUNT * EVENTS_PER_THREAD) / seconds;
+    double throughput = (THREAD_COUNT * EVENTS_PER_THREAD) / seconds;
 
     std::cout << "\n" << name << "\n";
     std::cout << "Time:       " << time_ms << " ms\n";
@@ -176,15 +175,15 @@ void run_test(const std::string& name, Worker worker, bool use_atomic)
 
 int main()
 {
-    std::cout << "\n\nResult:\n\n";
+    std::cout << "\nResult:\n";
 
-    run_test("Single mutex", singleMutex, false);
+    run("Single mutex", singleMutex, false);
 
-    run_test("Mutex for each counter", multipleMutexes, false);
+    run("Mutex for each counter", multipleMutexes, false);
 
-    run_test("Atomic", atomic, true);
+    run("Atomic", atomic, true);
 
-    run_test("Atomic with memory_order_relaxed", atomicRelaxed, true);
+    run("Atomic with memory_order_relaxed", atomicRelaxed, true);
 
     std::cout << "\nExpected total ops: " << THREAD_COUNT * EVENTS_PER_THREAD << "\n\n";
 
