@@ -1,0 +1,4 @@
+Was a fun exercise in barrier implementation. The so-called simple barrier, or the obvious solution, has a deadlock flaw, which can be fixed by looking at generations of threads reaching barriers, and the concepts of generations keeping threads in the same phase.
+Barriers usually have a cost of spin wait, plus also having the possibility of threads waiting at the barrier for a thread to catch up, with the last thread completing a big chunk of work.
+Have shown a terminal screenshot, with each phase showing the time where first thread starts and final thread leaves.
+![Terminal Screenshot](TS.png)
