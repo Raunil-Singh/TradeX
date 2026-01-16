@@ -162,5 +162,5 @@ int main()
     }
     auto end = std::chrono::steady_clock::now();
 
-    std::cout << "Orders processed: " << tail.var.load() << "in time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << ". Throughput = " << static_cast<double>((tail.var.load() / std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()) * 1e6) << "\t \n";
+    std::cout << "Orders processed: " << tail.var.load() << "in time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << ". Throughput = " << static_cast<double>((tail.var.load() / std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()) * 1'000'000) << "\t \n";
 }
