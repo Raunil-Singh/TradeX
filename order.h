@@ -34,9 +34,9 @@ typedef enum{
 //Order Structure
 typedef struct {
     uint64_t order_id;
-    char symbol[SYMBOL_MAX_LENGTH];
     OrderType type;
-    double price;
+    int price;
+    uint64_t symbol_id;
     uint32_t quantity;
     OrderExecutionType execution_type;
     uint64_t timestamp;

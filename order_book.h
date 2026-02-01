@@ -22,8 +22,11 @@ class MemPool{
 
     public:
        explicit MemPool(size_t cap) : capacity(cap), used(0) {
-           nodes = new OrderNode[capacity];
+           nodes = static_cast<OrderNode*>(std::malloc(sizeof(OrderNode) * capacity));
 
+           if(!nodes){
+            throw std::bad_alloc();
+           }
            freeHead = &nodes[0];
            for(size_t i = 0; i<capacity-1; i++){
                nodes[i].next = &nodes[i+1];
@@ -32,7 +35,7 @@ class MemPool{
        }
 
        ~MemPool(){
-          delete[] nodes;
+          std::free(nodes);
        }
 
        OrderNode* allocate(){
@@ -91,17 +94,6 @@ class PriceQueues {
             return nullptr;
         }
 
-        Order* findSymbol(char* symbol){
-            OrderNode* curr = head;
-            while(curr){
-                if(curr->order.symbol == symbol){
-                    return &curr->order;
-                }
-                curr = curr->next;
-            }
-            return nullptr;
-        }
-
         bool removeOrder(uint64_t id) {
             OrderNode* prev = nullptr;
             OrderNode* curr = head;
@@ -133,27 +125,39 @@ class PriceQueues {
 //Order Book
 class OrderBook{
     private:
+       uint8_t symbol_id;
+       double best_buy_price;
+       double best_sell_price;
        PriceQueues* price_levels[PRICE_LEVELS];
+       unsigned char orderSide[PRICE_LEVELS];
        MemPool pool;
 
        inline int priceToIndex(double price) const {
-            int ticks = static_cast<int>(price * PRICE_SCALE + 0.5);
+            int ticks = static_cast<int>(price * PRICE_SCALE);
             return ticks - LOWER_LIMIT_TICKS;
         }
 
     public:
-       explicit OrderBook(size_t poolSize) : pool(poolSize){
-        memset(price_levels, 0, sizeof(price_levels));
-       }
+       OrderBook::OrderBook(size_t poolSize) : pool(poolSize) {
+           for(int i = 0; i < PRICE_LEVELS; i++) {
+               price_levels[i] = new PriceQueues(&pool);
+            }
+            for(int i = 0; i<PRICE_LEVELS; i++) {
+                orderSide[i] = 0;
+            }
+            best_buy_price= -1;
+            best_sell_price = -1;
+        }
 
        bool addOrder(Order &order){
            int index = priceToIndex(order.price);
            if(index<0 || index>=PRICE_LEVELS) return false;
 
-           if(!price_levels[index]) {
-               price_levels[index] = new PriceQueues(&pool);
-           }
+           if(order.type == BUY && order.price < best_buy_price) best_buy_price = order.price;
+           if(order.type == SELL && order.price > best_sell_price) best_sell_price = order.price;
 
+           if(order.type == BUY) orderSide[index] = 1;
+           if(order.type == SELL) orderSide[index] = 2;
            return price_levels[index]->insertOrder(order);
        }
 
@@ -168,6 +172,7 @@ class OrderBook{
         }
 
         bool removeOrder(uint64_t order_id) {
+
             for (int i = 0; i < PRICE_LEVELS; i++) {
                 if (price_levels[i] && price_levels[i]->removeOrder(order_id)) {
                     return true;
@@ -183,16 +188,7 @@ class OrderBook{
             order->quantity = new_qty;
             return true;
         }
-
- /*       Trade* marketMatching(Order* order){
-            double price = order->price;
-            OrderType t = order->type;
-            char* symbol = order->symbol;
-
-            int index = priceToIndex(price);
-
-        }
-*/
+        
 
         ~OrderBook() {
             for (int i = 0; i < PRICE_LEVELS; i++) {
