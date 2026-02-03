@@ -64,15 +64,15 @@ namespace TradeRingBuffer {
     bool trade_ring_buffer::any_new_trade() {
         item_node & node = rb->ring[index];
         uint64_t node_seq = node.seq.load(std::memory_order_acquire);
-        return (node_seq == next_expected_seq);
+        return (node_seq >= next_expected_seq);
     }
 
     // If lagged out, seq must be greater than next_expected_seq
     bool trade_ring_buffer::lagged_out() {
         item_node & node = rb->ring[index];
         uint64_t node_seq = node.seq.load(std::memory_order_acquire);
-        uint64_t diff = (node_seq + MOD - next_expected_seq) & (MOD - 1);
-        return (diff > 0);
+        uint64_t diff = ((node_seq + MOD) - next_expected_seq) & (MOD - 1);
+        return (diff >= RING_SIZE);
     }
 
     // Copies data directly into provided address
