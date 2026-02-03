@@ -613,7 +613,7 @@ TEST_F(TradeRingBufferTest, ConcurrentLagStorm) {
     std::thread cons([&] {
         while (!start.load(std::memory_order_acquire)) {}
         // Intentionally sleep to force lag
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         ASSERT_TRUE(consumer.lagged_out());
     });
 
