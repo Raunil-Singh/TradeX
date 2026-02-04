@@ -67,6 +67,12 @@ class PriceQueues {
     public: 
         explicit PriceQueues(MemPool* p) : head(nullptr), tail(nullptr), count(0), pool(p) {}
 
+        OrderNode* gethead() {return head;}
+
+        bool isEmpty() const {
+            return count == 0;
+        }
+
         bool insertOrder(Order& order){
             OrderNode* node = pool->allocate();
             if(!node) return false;
@@ -126,16 +132,11 @@ class PriceQueues {
 class OrderBook{
     private:
        uint8_t symbol_id;
-       double best_buy_price;
-       double best_sell_price;
+       uint64_t best_buy_price;
+       uint64_t best_sell_price;
        PriceQueues* price_levels[PRICE_LEVELS];
        unsigned char orderSide[PRICE_LEVELS];
        MemPool pool;
-
-       inline int priceToIndex(double price) const {
-            int ticks = static_cast<int>(price * PRICE_SCALE);
-            return ticks - LOWER_LIMIT_TICKS;
-        }
 
     public:
        OrderBook::OrderBook(size_t poolSize) : pool(poolSize) {
@@ -149,7 +150,22 @@ class OrderBook{
             best_sell_price = -1;
         }
 
-       bool addOrder(Order &order){
+        inline int priceToIndex(uint64_t price) const {
+            int ticks = static_cast<int>(price * PRICE_SCALE);
+            return ticks - LOWER_LIMIT_TICKS;
+        }
+
+        uint64_t bestbuyprice() const { return best_buy_price; }
+
+        uint64_t bestsellprice() const { return best_sell_price; }
+
+        PriceQueues* getpricelevels(int idx) {
+            return price_levels[idx];
+        }
+
+        unsigned char getorderside(uint64_t idx) const { return orderSide[idx]; }
+
+        bool addOrder(Order &order){
            int index = priceToIndex(order.price);
            if(index<0 || index>=PRICE_LEVELS) return false;
 
@@ -171,21 +187,23 @@ class OrderBook{
             return nullptr;
         }
 
-        bool removeOrder(uint64_t order_id) {
-
+        bool removeOrder(uint64_t price) {
+            int idx = priceToIndex(price);
+            uint64_t id = price_levels[idx]->gethead()->order.order_id;
             for (int i = 0; i < PRICE_LEVELS; i++) {
-                if (price_levels[i] && price_levels[i]->removeOrder(order_id)) {
+                if (price_levels[i] && price_levels[i]->removeOrder(id)) {
+                    if (price_levels[i]->isEmpty()) {
+                        orderSide[i] = 0;
+                    }
                     return true;
                 }
             }
             return false;
         }
 
-        bool modifyQuantity(uint64_t order_id, uint32_t new_qty) {
-            Order* order = findOrder(order_id);
-            if (!order) return false;
-
-            order->quantity = new_qty;
+        bool modifyQuantity(uint64_t price, uint32_t new_qty) {
+            int idx = priceToIndex(price);
+            price_levels[idx]->gethead()->order.quantity = new_qty;
             return true;
         }
         
@@ -196,6 +214,33 @@ class OrderBook{
             }
         }
 
+};
+
+class OrderBookManager {
+private:
+    OrderBook** books;
+    size_t numSymbols;
+
+public:
+    OrderBookManager(size_t nSymbols, size_t poolSize) : numSymbols(nSymbols)
+    {
+        books = new OrderBook*[numSymbols];
+
+        for (size_t i = 0; i < numSymbols; i++) {
+            books[i] = new OrderBook(poolSize);
+        }
+    }
+
+    OrderBook* get(uint32_t symbol_id) {
+        return books[symbol_id];
+    }
+
+    ~OrderBookManager() {
+        for (size_t i = 0; i < numSymbols; i++) {
+            delete books[i];
+        }
+        delete[] books;
+    }
 };
 
 #endif

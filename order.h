@@ -35,7 +35,7 @@ typedef enum{
 typedef struct {
     uint64_t order_id;
     OrderType type;
-    int price;
+    uint64_t price;
     uint64_t symbol_id;
     uint32_t quantity;
     OrderExecutionType execution_type;

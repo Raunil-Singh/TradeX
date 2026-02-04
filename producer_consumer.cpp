@@ -12,6 +12,8 @@
 #include <trade.h>
 #include <order_book.h>
 
+OrderBookManager bookmanager;
+
 template<typename T>
 class ThreadSafeQueue {
 private:
@@ -71,12 +73,12 @@ public:
 class MatchingEngineDispatcher {
 private:
     const int NUM_GROUPS = 5;
-    std::vector<ThreadSafeQueue<std::pair<Order, OrderBook*>>> group_queues;
-    SymbolGroupMapping symbol_mapping;
+    std::vector<ThreadSafeQueue<Order>> group_queues;
+    // SymbolGroupMapping symbol_mapping;
 
 public:
     MatchingEngineDispatcher() : group_queues(NUM_GROUPS) {
-        symbol_mapping.load_mapping("file_name");
+        // symbol_mapping.load_mapping("file_name");
     }
 
     void start_dispatcher() {
@@ -84,50 +86,65 @@ public:
     }
 
     void dispatch_order(const Order& order) {
-        std::pair<int, OrderBook*> group_id = symbol_mapping.get_group(order.symbol_id);
-        group_queues[group_id.first].push({order, group_id.second});
+        group_queues[order.symbol_id/1000].push(order);
     }
 
     void start_group_thread(int group_no) {
         // Process orders from group queue 
-        std::pair<Order, OrderBook*> cur_order = group_queues[group_no].front();
+        Order cur_order = group_queues[group_no].front();
         process_order(cur_order);
     }
 
-    void process_order(std::pair<Order, OrderBook*> order) {
-        // Matching logic and orderbook instances
-        /*
-            if(order.type==0) {
-                if(orderbook.best_sell_price > order.price) return 0;
-                double start_price = orderbook.best_sell_price;
-                while(order.quantity>0 && start_price <= buy_price) {
-                    if(orderbook[start_price].empty()) {
-                        start_price++;
-                        continue;
-                    }
-                    if(start_price.quantity > order.quantity) {
-                        // Inititalise trade
-                        buffer.push(trade);
-                        orderbook[sell_price].modify_order();
-                        orderbook[buy_price].remove_order();
-                        break;
-                    } else if (start_price.quantity > 0) {
-                        // Inititalise trade
-                        buffer.push(trade);
-                        orderbook[sell_price].remove_order();
-                        orderbook[buy_price].modify_order();
-                    } else {
-                        map[symbol_id].push(order)          // Map of [symbol_id, orderbook]
-                        break;
-                    }
-                    start_price++;
+    void process_order(Order order) {
+        if(order.type == 0) {
+            OrderBook *book = bookmanager.get((order.symbol_id)%1000);
+            if(book->bestsellprice() > order.price) {
+                book->addOrder(order);
+                return;
+            }
+            uint64_t current_price = book->bestsellprice();
+            while(order.quantity > 0) {
+                uint64_t price_index = book->priceToIndex(current_price);
+                if(book->getorderside(price_index) == '0') {
+                    current_price++;
+                    continue;
                 }
-                if(orderbook[start_price].empty()) {
-                    while(!orderbook[start_price].empty()) start_price++;
+                if(book->getpricelevels(price_index)->gethead()->order.quantity > order.quantity) {
+                    uint64_t new_quantity = book->getpricelevels(price_index)->gethead()->order.quantity - order.quantity;
+                    book->modifyQuantity(current_price, new_quantity);
+                    break;
+                } else if (book->getpricelevels(price_index)->gethead()->order.quantity > 0) {
+                    order.quantity -= book->getpricelevels(price_index)->gethead()->order.quantity;
+                    book->removeOrder(current_price);
+                } else {
+                    book->addOrder(order);
                 }
             }
-
-        */
+        } else {
+            OrderBook *book = bookmanager.get((order.symbol_id)%1000);
+            if(book->bestbuyprice() < order.price) {
+                book->addOrder(order);
+                return;
+            }
+            uint64_t current_price = book->bestbuyprice();
+            while(order.quantity > 0) {
+                uint64_t price_index = book->priceToIndex(current_price);
+                if(book->getorderside(price_index) == '0') {
+                    current_price++;
+                    continue;
+                }
+                if(book->getpricelevels(price_index)->gethead()->order.quantity > order.quantity) {
+                    uint64_t new_quantity = book->getpricelevels(price_index)->gethead()->order.quantity - order.quantity;
+                    book->modifyQuantity(current_price, new_quantity);
+                    break;
+                } else if (book->getpricelevels(price_index)->gethead()->order.quantity > 0) {
+                    order.quantity -= book->getpricelevels(price_index)->gethead()->order.quantity;
+                    book->removeOrder(current_price);
+                } else {
+                    book->addOrder(order);
+                }
+            }
+        }
     }
 
     void start() { // Dispatcher thread
