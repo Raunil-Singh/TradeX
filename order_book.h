@@ -139,21 +139,21 @@ class OrderBook{
        MemPool pool;
 
     public:
-       OrderBook::OrderBook(size_t poolSize) : pool(poolSize) {
+       OrderBook(size_t poolSize) : pool(poolSize) {
            for(int i = 0; i < PRICE_LEVELS; i++) {
                price_levels[i] = new PriceQueues(&pool);
             }
             for(int i = 0; i<PRICE_LEVELS; i++) {
-                orderSide[i] = 0;
+                orderSide[i] = '0';
             }
-            best_buy_price= -1;
-            best_sell_price = -1;
+            best_buy_price= 0;
+            best_sell_price = UINT64_MAX;
         }
 
         inline int priceToIndex(uint64_t price) const {
-            int ticks = static_cast<int>(price * PRICE_SCALE);
-            return ticks - LOWER_LIMIT_TICKS;
+            return static_cast<int>(price) - LOWER_LIMIT_TICKS;  
         }
+
 
         uint64_t bestbuyprice() const { return best_buy_price; }
 
@@ -169,11 +169,11 @@ class OrderBook{
            int index = priceToIndex(order.price);
            if(index<0 || index>=PRICE_LEVELS) return false;
 
-           if(order.type == BUY && order.price < best_buy_price) best_buy_price = order.price;
-           if(order.type == SELL && order.price > best_sell_price) best_sell_price = order.price;
+           if(order.type == BUY && order.price > best_buy_price) best_buy_price = order.price;
+           if(order.type == SELL && order.price < best_sell_price) best_sell_price = order.price;
 
-           if(order.type == BUY) orderSide[index] = 1;
-           if(order.type == SELL) orderSide[index] = 2;
+           if(order.type == BUY) orderSide[index] = '1';
+           if(order.type == SELL) orderSide[index] = '2';
            return price_levels[index]->insertOrder(order);
        }
 
@@ -189,20 +189,18 @@ class OrderBook{
 
         bool removeOrder(uint64_t price) {
             int idx = priceToIndex(price);
+            if(orderSide[idx] == '0') return false;
             uint64_t id = price_levels[idx]->gethead()->order.order_id;
-            for (int i = 0; i < PRICE_LEVELS; i++) {
-                if (price_levels[i] && price_levels[i]->removeOrder(id)) {
-                    if (price_levels[i]->isEmpty()) {
-                        orderSide[i] = 0;
-                    }
-                    return true;
-                }
+            bool removed = price_levels[idx]->removeOrder(id);
+            if(removed && price_levels[idx]->isEmpty()){
+                orderSide[idx] = '0';
             }
-            return false;
+            return removed;
         }
 
         bool modifyQuantity(uint64_t price, uint32_t new_qty) {
             int idx = priceToIndex(price);
+            if(orderSide[idx] == '0') return false;
             price_levels[idx]->gethead()->order.quantity = new_qty;
             return true;
         }
