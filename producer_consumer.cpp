@@ -53,23 +53,6 @@ public:
     }
 };
 
-class SymbolGroupMapping {
-private:
-    std::unordered_map<uint64_t, std::pair<int, OrderBook*>> symbol_to_group; // [Symbol_id -> (Group number, Orderbook)]
-    std::mutex m_sgm;
-
-public:
-    void load_mapping(const std::string& file) {
-        // Load from file thats generated based on volume analysis
-    }
-
-    std::pair<int, OrderBook*> get_group(const uint64_t& symbol_id) {
-        std::lock_guard<std::mutex> lock(m_sgm);
-        auto temp = symbol_to_group[symbol_id]; 
-        return temp;
-    }
-};
-
 class MatchingEngineDispatcher {
 private:
     const int NUM_GROUPS = 5;
@@ -91,11 +74,16 @@ public:
 
     void start_group_thread(int group_no) {
         // Process orders from group queue 
-        Order cur_order = group_queues[group_no].front();
-        process_order(cur_order);
+        Order cur_order;
+        while(true) {
+            if(group_queues[group_no].pop(cur_order)) {
+                process_order(cur_order);
+            }
+        }
     }
 
     void process_order(Order order) {
+
         if(order.type == 0) {
             OrderBook *book = bookmanager.get((order.symbol_id)%1000);
             if(book->bestsellprice() > order.price) {
@@ -103,7 +91,7 @@ public:
                 return;
             }
             uint64_t current_price = book->bestsellprice();
-            while(order.quantity > 0) {
+            while(order.quantity > 0 && current_price <= order.price) {
                 uint64_t price_index = book->priceToIndex(current_price);
                 if(book->getorderside(price_index) == '0') {
                     current_price++;
@@ -113,12 +101,13 @@ public:
                     uint64_t new_quantity = book->getpricelevels(price_index)->gethead()->order.quantity - order.quantity;
                     book->modifyQuantity(current_price, new_quantity);
                     break;
-                } else if (book->getpricelevels(price_index)->gethead()->order.quantity > 0) {
+                } else {
                     order.quantity -= book->getpricelevels(price_index)->gethead()->order.quantity;
                     book->removeOrder(current_price);
-                } else {
-                    book->addOrder(order);
                 }
+            }
+            if(order.quantity > 0) {
+                book->addOrder(order);
             }
         } else {
             OrderBook *book = bookmanager.get((order.symbol_id)%1000);
@@ -127,22 +116,23 @@ public:
                 return;
             }
             uint64_t current_price = book->bestbuyprice();
-            while(order.quantity > 0) {
+            while(order.quantity > 0 && current_price >= order.price) {
                 uint64_t price_index = book->priceToIndex(current_price);
                 if(book->getorderside(price_index) == '0') {
-                    current_price++;
+                    current_price--;
                     continue;
                 }
                 if(book->getpricelevels(price_index)->gethead()->order.quantity > order.quantity) {
                     uint64_t new_quantity = book->getpricelevels(price_index)->gethead()->order.quantity - order.quantity;
                     book->modifyQuantity(current_price, new_quantity);
                     break;
-                } else if (book->getpricelevels(price_index)->gethead()->order.quantity > 0) {
+                } else {
                     order.quantity -= book->getpricelevels(price_index)->gethead()->order.quantity;
                     book->removeOrder(current_price);
-                } else {
-                    book->addOrder(order);
                 }
+            }
+            if(order.quantity > 0) {
+                book->addOrder(order);
             }
         }
     }
