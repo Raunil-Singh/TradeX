@@ -5,42 +5,35 @@
 #include <iostream>
 #include <cstdint>
 
-#define PRICE_SCALE 100
 
-#define LOWER_LIMIT_PRICE 100   
-#define UPPER_LIMIT_PRICE 101
-
-#define LOWER_LIMIT_TICKS (LOWER_LIMIT_PRICE * PRICE_SCALE)
-#define UPPER_LIMIT_TICKS (UPPER_LIMIT_PRICE * PRICE_SCALE)
-
-#define PRICE_LEVELS (UPPER_LIMIT_TICKS - LOWER_LIMIT_TICKS + 1)
 
 #define MAX_ORDERS_PER_LEVEL 100
 #define SYMBOL_MAX_LENGTH 20
+uint32_t NULL_IDX = UINT32_MAX;  
 
-typedef enum {
+enum class OrderType {
     BUY,
     SELL
-} OrderType;
+};
 
-typedef enum{
+enum class OrderExecutionType{
     MARKET,             
     LIMIT,
     //FOK,
     //IOC,
     //ICEBERG
-} OrderExecutionType;
+};
 
 //Order Structure
 typedef struct {
     uint64_t order_id;
-    OrderType type;
     uint64_t price;
     uint64_t symbol_id;
-    uint32_t quantity;
-    OrderExecutionType execution_type;
     uint64_t timestamp;
     uint64_t trader_id;
+    OrderType type;  
+    uint32_t quantity;
+    OrderExecutionType execution_type;
 } Order;
 
 #endif

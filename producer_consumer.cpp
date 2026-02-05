@@ -8,9 +8,9 @@
 #include <vector>
 #include <atomic>
 
-#include <order.h>
-#include <trade.h>
-#include <order_book.h>
+#include "order.h"
+#include "trade.h"
+#include "order_book.h"
 
 OrderBookManager bookmanager;
 
@@ -84,7 +84,8 @@ public:
 
     void process_order(Order order) {
 
-        if(order.type == 0) {
+        if(order.type == OrderType::BUY)
+{
             OrderBook *book = bookmanager.get((order.symbol_id)%1000);
             if(book->bestsellprice() > order.price) {
                 book->addOrder(order);
@@ -152,7 +153,7 @@ public:
 
 int main() {
     std::cout << "Starting System...";
-    
+    std::cout<<sizeof(Order)<<std::endl;
     MatchingEngineDispatcher dispatcher;
     
     std::thread dispatcher_system([&dispatcher]() {

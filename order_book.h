@@ -9,14 +9,15 @@
 
 struct OrderNode{
     Order order;
-    OrderNode* next;
+    uint32_t next;
+    uint32_t back;
 };
 
 //Memory Pool
 class MemPool{
     private:
        OrderNode* nodes;
-       OrderNode* freeHead;
+       uint32_t freeHead;
        size_t used;
        size_t capacity;
 
@@ -27,131 +28,145 @@ class MemPool{
            if(!nodes){
             throw std::bad_alloc();
            }
-           freeHead = &nodes[0];
+           freeHead = 0;
            for(size_t i = 0; i<capacity-1; i++){
-               nodes[i].next = &nodes[i+1];
+               nodes[i].next = i+1;
            }
-           nodes[capacity-1].next = nullptr;
+           nodes[capacity-1].next = NULL_IDX;
        }
 
        ~MemPool(){
           std::free(nodes);
        }
 
-       OrderNode* allocate(){
-          if(!freeHead) return nullptr;
+       uint32_t allocate(){
+          if(freeHead == NULL_IDX) return NULL_IDX;
 
-          OrderNode* node = freeHead;
-          freeHead = freeHead->next;
-          node->next = nullptr;
+          uint32_t idx = freeHead;
+          freeHead = nodes[idx].next;
+          nodes[idx].next = NULL_IDX;
+          nodes[idx].back = NULL_IDX;
           used++;
-          return node;
+          return idx;
        }
 
-       void deallocate(OrderNode* node){
-           if(!node) return;
+       void deallocate(int idx){
+           if(idx == NULL_IDX) return;
 
-           node->next = freeHead;
-           freeHead = node;
+           nodes[idx].next = freeHead;
+           freeHead = idx;
            used--;
        }
+
+        OrderNode* getNode(int idx) {
+            return &nodes[idx];
+        }
 };
 
 //Queue for price levels
 class PriceQueues {
     private:
-        OrderNode* head;
-        OrderNode* tail;
+        uint32_t head;
+        uint32_t tail;
         size_t count;
         MemPool* pool;
     public: 
-        explicit PriceQueues(MemPool* p) : head(nullptr), tail(nullptr), count(0), pool(p) {}
+        explicit PriceQueues(MemPool* p) : head(NULL_IDX), tail(NULL_IDX), count(0), pool(p) {}
 
-        OrderNode* gethead() {return head;}
+        OrderNode* gethead() {return pool->getNode(head);}
 
         bool isEmpty() const {
             return count == 0;
         }
 
         bool insertOrder(Order& order){
-            OrderNode* node = pool->allocate();
-            if(!node) return false;
+            uint32_t idx = pool->allocate();
+            if(idx == NULL_IDX) return false;
 
+            OrderNode* node = pool->getNode(idx); 
             node->order = order;
-            if(!head){
-                head = tail = node;
+            if(head == NULL_IDX){
+                head = tail = idx;
             }
             else{
-                tail->next = node;
-                tail = node;
+                pool->getNode(tail)->next = idx;
+                pool->getNode(idx)->back = tail;
+                tail = idx;
             }
             count++;
             return true;
         }
 
-        Order* findOrder(uint64_t id){
-            OrderNode* curr = head;
-            while(curr){
-                if(curr->order.order_id == id){
-                    return &curr->order;
+        uint32_t findOrder(uint64_t id){
+            uint32_t curr = head;
+            while(curr!=NULL_IDX){
+                OrderNode* node = pool->getNode(curr);
+                if(node->order.order_id == id){
+                    return curr;
                 }
-                curr = curr->next;
+                curr = node->next;
             }
-            return nullptr;
+            return NULL_IDX;
         }
 
-        bool removeOrder(uint64_t id) {
-            OrderNode* prev = nullptr;
-            OrderNode* curr = head;
 
-            while (curr) {
-                if (curr->order.order_id == id) {
-                    if (prev){
-                        prev->next = curr->next;
-                    }
-                    else{
-                        head = curr->next;
-                    }
+        bool removeOrder(uint64_t id){
+            uint32_t idx = findOrder(id);
+            if(idx == NULL_IDX) return false;
 
-                    if (curr == tail){
-                        tail = prev;
-                    }
+            OrderNode* node = pool->getNode(idx);
+            uint32_t prev = node->back;
+            uint32_t next = node->next;
 
-                    pool->deallocate(curr);
-                    count--;
-                    return true;
-                }
-                prev = curr;
-                curr = curr->next;
+            if(idx == head){
+                head = next;
+                if(head != NULL_IDX)
+                    pool->getNode(head)->back = NULL_IDX;
             }
-            return false;
+            else{
+                pool->getNode(prev)->next = next;
+            }
+
+            if(idx == tail){
+                tail = prev;
+            }
+            else if(next != NULL_IDX){
+                pool->getNode(next)->back = prev;
+            }
+
+            pool->deallocate(idx);
+            count--;
+            return true;
         }
 };
 
 //Order Book
 class OrderBook{
     private:
-       uint8_t symbol_id;
+       uint64_t lower_limit;
+       uint64_t upper_limit;
+       size_t PRICE_LEVELS;
        uint64_t best_buy_price;
        uint64_t best_sell_price;
-       PriceQueues* price_levels[PRICE_LEVELS];
-       unsigned char orderSide[PRICE_LEVELS];
+       PriceQueues** price_levels;
+       unsigned char* orderSide;
        MemPool pool;
 
     public:
-       OrderBook(size_t poolSize) : pool(poolSize) {
+       OrderBook(size_t poolSize, uint64_t lower_price, uint64_t upper_price) : pool(poolSize), lower_limit(lower_price), upper_limit(upper_price) {
+           PRICE_LEVELS = upper_price - lower_price + 1;
+           price_levels = new PriceQueues*[PRICE_LEVELS];
+           orderSide = new unsigned char[PRICE_LEVELS];
            for(int i = 0; i < PRICE_LEVELS; i++) {
                price_levels[i] = new PriceQueues(&pool);
-            }
-            for(int i = 0; i<PRICE_LEVELS; i++) {
-                orderSide[i] = '0';
+               orderSide[i] = '0';
             }
             best_buy_price= 0;
             best_sell_price = UINT64_MAX;
         }
 
         inline int priceToIndex(uint64_t price) const {
-            return static_cast<int>(price) - LOWER_LIMIT_TICKS;  
+            return static_cast<int>(price) - lower_limit;  
         }
 
 
@@ -169,19 +184,19 @@ class OrderBook{
            int index = priceToIndex(order.price);
            if(index<0 || index>=PRICE_LEVELS) return false;
 
-           if(order.type == BUY && order.price > best_buy_price) best_buy_price = order.price;
-           if(order.type == SELL && order.price < best_sell_price) best_sell_price = order.price;
+           if(order.type == OrderType::BUY && order.price > best_buy_price) best_buy_price = order.price;
+           if(order.type == OrderType::SELL && order.price < best_sell_price) best_sell_price = order.price;
 
-           if(order.type == BUY) orderSide[index] = '1';
-           if(order.type == SELL) orderSide[index] = '2';
+           if(order.type == OrderType::BUY) orderSide[index] = '1';
+           if(order.type == OrderType::SELL) orderSide[index] = '2';
            return price_levels[index]->insertOrder(order);
        }
 
         Order* findOrder(uint64_t order_id) {
             for (int i = 0; i < PRICE_LEVELS; i++) {
-                if (price_levels[i]) {
-                    Order* o = price_levels[i]->findOrder(order_id);
-                    if (o) return o;
+                int idx = price_levels[i]->findOrder(order_id);
+                if (idx != NULL_IDX) {
+                    return &(pool.getNode(idx)->order);
                 }
             }
             return nullptr;
@@ -210,6 +225,8 @@ class OrderBook{
             for (int i = 0; i < PRICE_LEVELS; i++) {
                 delete price_levels[i];
             }
+            delete[] price_levels;
+            delete[] orderSide;
         }
 
 };
@@ -220,12 +237,12 @@ private:
     size_t numSymbols;
 
 public:
-    OrderBookManager(size_t nSymbols, size_t poolSize) : numSymbols(nSymbols)
+    OrderBookManager(size_t nSymbols, size_t poolSize, uint64_t* lower_price, uint64_t* upper_price) : numSymbols(nSymbols)
     {
         books = new OrderBook*[numSymbols];
 
         for (size_t i = 0; i < numSymbols; i++) {
-            books[i] = new OrderBook(poolSize);
+            books[i] = new OrderBook(poolSize,lower_price[i],upper_price[i]);
         }
     }
 
