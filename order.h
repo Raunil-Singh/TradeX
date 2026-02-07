@@ -5,7 +5,7 @@
 #include <iostream>
 #include <cstdint>
 
-
+namespace matching_engine{
 
 #define MAX_ORDERS_PER_LEVEL 100
 #define SYMBOL_MAX_LENGTH 20
@@ -35,5 +35,5 @@ typedef struct {
     uint32_t quantity;
     OrderExecutionType execution_type;
 } Order;
-
+}
 #endif

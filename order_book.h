@@ -4,9 +4,11 @@
 #include <cstring>
 #include <iostream>
 #include <cstdint>
+#include <unordered_map>
 #include "order.h"
 #include "trade.h"
 
+namespace matching_engine {
 struct OrderNode{
     Order order;
     uint32_t next;
@@ -63,6 +65,8 @@ class MemPool{
         }
 };
 
+
+
 //Queue for price levels
 class PriceQueues {
     private:
@@ -79,9 +83,9 @@ class PriceQueues {
             return count == 0;
         }
 
-        bool insertOrder(Order& order){
+        int insertOrder(Order& order){
             uint32_t idx = pool->allocate();
-            if(idx == NULL_IDX) return false;
+            if(idx == NULL_IDX) return NULL_IDX;
 
             OrderNode* node = pool->getNode(idx); 
             node->order = order;
@@ -94,24 +98,11 @@ class PriceQueues {
                 tail = idx;
             }
             count++;
-            return true;
-        }
-
-        uint32_t findOrder(uint64_t id){
-            uint32_t curr = head;
-            while(curr!=NULL_IDX){
-                OrderNode* node = pool->getNode(curr);
-                if(node->order.order_id == id){
-                    return curr;
-                }
-                curr = node->next;
-            }
-            return NULL_IDX;
+            return idx;
         }
 
 
-        bool removeOrder(uint64_t id){
-            uint32_t idx = findOrder(id);
+        bool removeOrder(int idx){
             if(idx == NULL_IDX) return false;
 
             OrderNode* node = pool->getNode(idx);
@@ -151,6 +142,8 @@ class OrderBook{
        PriceQueues** price_levels;
        unsigned char* orderSide;
        MemPool pool;
+       std::unordered_map<uint64_t, uint32_t> orderMap;
+
 
     public:
        OrderBook(size_t poolSize, uint64_t lower_price, uint64_t upper_price) : pool(poolSize), lower_limit(lower_price), upper_limit(upper_price) {
@@ -161,6 +154,7 @@ class OrderBook{
                price_levels[i] = new PriceQueues(&pool);
                orderSide[i] = '0';
             }
+            orderMap.reserve(poolSize);            //For now reserve is used, will look into allocators and try it out   
             best_buy_price= 0;
             best_sell_price = UINT64_MAX;
         }
@@ -184,31 +178,52 @@ class OrderBook{
            int index = priceToIndex(order.price);
            if(index<0 || index>=PRICE_LEVELS) return false;
 
+           int idx = price_levels[index]->insertOrder(order);
+           if(idx == NULL_IDX) return false;
+           orderMap[order.order_id] = idx;
            if(order.type == OrderType::BUY && order.price > best_buy_price) best_buy_price = order.price;
            if(order.type == OrderType::SELL && order.price < best_sell_price) best_sell_price = order.price;
 
            if(order.type == OrderType::BUY) orderSide[index] = '1';
            if(order.type == OrderType::SELL) orderSide[index] = '2';
-           return price_levels[index]->insertOrder(order);
+           return true;
        }
 
         Order* findOrder(uint64_t order_id) {
-            for (int i = 0; i < PRICE_LEVELS; i++) {
-                int idx = price_levels[i]->findOrder(order_id);
-                if (idx != NULL_IDX) {
-                    return &(pool.getNode(idx)->order);
-                }
-            }
-            return nullptr;
+            auto it = orderMap.find(order_id);
+            if(it == orderMap.end()) return nullptr;
+
+            return &(pool.getNode(it->second)->order);
         }
 
         bool removeOrder(uint64_t price) {
             int idx = priceToIndex(price);
             if(orderSide[idx] == '0') return false;
             uint64_t id = price_levels[idx]->gethead()->order.order_id;
-            bool removed = price_levels[idx]->removeOrder(id);
-            if(removed && price_levels[idx]->isEmpty()){
-                orderSide[idx] = '0';
+            
+            auto it = orderMap.find(id);
+            if(it == orderMap.end()) return false;
+
+            int index = it->second;
+            bool removed = price_levels[idx]->removeOrder(index); 
+            if(removed){
+                orderMap.erase(it);
+                if(price_levels[idx]->isEmpty()) orderSide[idx] = '0';
+            }
+            return removed;
+        }
+
+        bool cancelOrder(uint64_t id){
+            auto it = orderMap.find(id);
+            if(it == orderMap.end()) return false;
+
+            int idx = it->second;
+            OrderNode* node = pool.getNode(idx);
+            int i = priceToIndex(node->order.price);
+            bool removed = price_levels[i]->removeOrder(idx);
+            if(removed){
+                orderMap.erase(it);
+                if(price_levels[i]->isEmpty()) orderSide[idx] = '0';
             }
             return removed;
         }
@@ -257,5 +272,5 @@ public:
         delete[] books;
     }
 };
-
+}
 #endif

@@ -12,6 +12,7 @@
 #include "trade.h"
 #include "order_book.h"
 
+namespace matching_engine {
 OrderBookManager bookmanager;
 
 template<typename T>
@@ -150,11 +151,11 @@ public:
         for (auto& t : group_threads) t.join();
     }
 };
-
+}
 int main() {
     std::cout << "Starting System...";
-    std::cout<<sizeof(Order)<<std::endl;
-    MatchingEngineDispatcher dispatcher;
+    std::cout<<sizeof(matching_engine::Order)<<std::endl;
+    matching_engine::MatchingEngineDispatcher dispatcher;
     
     std::thread dispatcher_system([&dispatcher]() {
         dispatcher.start();
