@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include "order.h"
 #include "trade.h"
+#include "absl/container/flat_hash_map.h"
 
 namespace matching_engine {
 struct OrderNode{
@@ -142,8 +143,7 @@ class OrderBook{
        PriceQueues** price_levels;
        unsigned char* orderSide;
        MemPool pool;
-       std::unordered_map<uint64_t, uint32_t> orderMap;
-
+       absl::flat_hash_map<uint64_t, uint32_t> orderMap;
 
     public:
        OrderBook(size_t poolSize, uint64_t lower_price, uint64_t upper_price) : pool(poolSize), lower_limit(lower_price), upper_limit(upper_price) {
@@ -154,7 +154,7 @@ class OrderBook{
                price_levels[i] = new PriceQueues(&pool);
                orderSide[i] = '0';
             }
-            orderMap.reserve(poolSize);            //For now reserve is used, will look into allocators and try it out   
+            orderMap.rehash(poolSize);
             best_buy_price= 0;
             best_sell_price = UINT64_MAX;
         }
@@ -223,7 +223,7 @@ class OrderBook{
             bool removed = price_levels[i]->removeOrder(idx);
             if(removed){
                 orderMap.erase(it);
-                if(price_levels[i]->isEmpty()) orderSide[idx] = '0';
+                if(price_levels[i]->isEmpty()) orderSide[i] = '0';
             }
             return removed;
         }
