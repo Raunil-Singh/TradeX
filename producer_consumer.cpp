@@ -16,49 +16,54 @@ namespace matching_engine {
 OrderBookManager bookmanager;
 
 template<typename T>
-class ThreadSafeQueue {
+class RingBuffer {
 private:
-    std::queue<T> queue;
-    std::mutex m_queue;
-    std::condition_variable cv;
+    std::vector<T> buffer;
+    size_t capacity;
+    alignas(64) uint64_t head;
+    alignas(64) uint64_t tail;
 
 public:
-    void push(T item) {
-        {
-            std::lock_guard<std::mutex> lock(m_queue);
-            queue.push(std::move(item));
-        }
-        cv.notify_one();
+    explicit RingBuffer(size_t cap) : capacity(cap), head(0), tail(0) {
+        buffer.resize(capacity);
     }
 
-    T front() {
-        std::lock_guard<std::mutex> lock(m_queue);
-        return queue.front();
+    bool push(const T &item) {
+        uint64_t cur_tail = tail.load(std::memory_order_relaxed);
+        uint64_t next_tail = (cur_tail+1)%capacity;
+        if(next_tail == head.load(std::memory_order_acquire)) return false;
+
+        buffer[cur_tail] = item;
+        tail.store(next_tail, std::memory_order_release);
+        return true;
     }
 
-    bool pop(T& item, int timeout_ms = 100) {
-        std::unique_lock<std::mutex> lock(m_queue);
-        if (cv.wait_for(lock, std::chrono::milliseconds(timeout_ms),[this]{
-                return !this->queue.empty();
-            })) {
-            item = std::move(queue.front());
-            queue.pop();
-            return true;
-        }
-        return false;
-    }
+    bool pop(T &item) {
+        uint64_t cur_head = head.load(std::memory_order_relaxed);
+        if(cur_head == tail.load(std::memory_order_acquire)) return false;
 
-    size_t size() {
-        std::lock_guard<std::mutex> lock(m_queue);
-        return queue.size();
+        item = buffer[cur_head];
+        head.store((cur_head+1)%capacity, std::memory_order_release);
+        return true;
+    }    
+};
+
+template<typename T>
+struct alignas(64) AllignedBuffer {
+    RingBuffer<T> buffer;
+
+    bool push(const T &item) {
+        return buffer.push(item);
+    } 
+    bool pop(T &item) {
+        return buffer.pop(item);
     }
 };
 
 class MatchingEngineDispatcher {
 private:
     const int NUM_GROUPS = 5;
-    std::vector<ThreadSafeQueue<Order>> group_queues;
-    // SymbolGroupMapping symbol_mapping;
+    std::vector<AllignedBuffer<Order>> group_queues;
 
 public:
     MatchingEngineDispatcher() : group_queues(NUM_GROUPS) {
@@ -85,8 +90,7 @@ public:
 
     void process_order(Order order) {
 
-        if(order.type == OrderType::BUY)
-{
+        if(order.type == OrderType::BUY) {
             OrderBook *book = bookmanager.get((order.symbol_id)%1000);
             if(book->bestsellprice() > order.price) {
                 book->addOrder(order);
@@ -152,6 +156,7 @@ public:
     }
 };
 }
+
 int main() {
     std::cout << "Starting System...";
     std::cout<<sizeof(matching_engine::Order)<<std::endl;
