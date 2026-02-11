@@ -16,12 +16,12 @@ namespace matching_engine {
 OrderBookManager bookmanager;
 
 template<typename T>
-class RingBuffer {
+class alignas(64) RingBuffer {
 private:
     std::vector<T> buffer;
     size_t capacity;
-    alignas(64) uint64_t head;
-    alignas(64) uint64_t tail;
+    std::atomic<uint64_t> head;
+    std::atomic<uint64_t> tail;
 
 public:
     explicit RingBuffer(size_t cap) : capacity(cap), head(0), tail(0) {
@@ -48,26 +48,17 @@ public:
     }    
 };
 
-template<typename T>
-struct alignas(64) AllignedBuffer {
-    RingBuffer<T> buffer;
-
-    bool push(const T &item) {
-        return buffer.push(item);
-    } 
-    bool pop(T &item) {
-        return buffer.pop(item);
-    }
-};
 
 class MatchingEngineDispatcher {
 private:
     const int NUM_GROUPS = 5;
-    std::vector<AllignedBuffer<Order>> group_queues;
+    std::vector<RingBuffer<Order>> group_queues;
 
 public:
-    MatchingEngineDispatcher() : group_queues(NUM_GROUPS) {
-        // symbol_mapping.load_mapping("file_name");
+    MatchingEngineDispatcher(uint64_t capacity) {
+        for(int i=0; i<NUM_GROUPS; i++) {
+            group_queues.emplace_back(capacity);
+        }
     }
 
     void start_dispatcher() {
@@ -147,7 +138,7 @@ public:
         std::thread dispatcher_thread(&MatchingEngineDispatcher::start_dispatcher, this);
 
         std::vector<std::thread> group_threads;
-        for (int i = 1; i <= NUM_GROUPS; ++i) {
+        for (int i = 0; i < NUM_GROUPS; ++i) {
             group_threads.emplace_back(&MatchingEngineDispatcher::start_group_thread, this, i);
         }
         
@@ -160,7 +151,7 @@ public:
 int main() {
     std::cout << "Starting System...";
     std::cout<<sizeof(matching_engine::Order)<<std::endl;
-    matching_engine::MatchingEngineDispatcher dispatcher;
+    matching_engine::MatchingEngineDispatcher dispatcher(10000); // Random value of capacity passed
     
     std::thread dispatcher_system([&dispatcher]() {
         dispatcher.start();
