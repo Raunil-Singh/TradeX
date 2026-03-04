@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cstdint>
 
+
 typedef struct {
     uint64_t trade_id;
     uint64_t timestamp_ns;
