@@ -52,9 +52,9 @@ namespace TradeRingBuffer {
 
     // No explicit check needed for producer because connsumers dont have write access
     // We must first write data and then update seq to ensure the data is safe to read
-    bool trade_ring_buffer::add_trade(Trade &recent_trade) {
+    bool trade_ring_buffer::add_trade(matching_engine::Trade &recent_trade) {
         item_node & node = rb->ring[index];
-        std::memcpy(&node.curr_trade, &recent_trade, sizeof(Trade));
+        std::memcpy(&node.curr_trade, &recent_trade, sizeof(matching_engine::Trade));
         node.seq.store(next_expected_seq, std::memory_order_release);
         update_index_and_seq();
         return true;
@@ -80,13 +80,13 @@ namespace TradeRingBuffer {
     // Assumes that any_new_trade() was called before this to ensure new data is available
     void trade_ring_buffer::get_trade(void * address) {
         item_node & node = rb->ring[index];
-        std::memcpy(address, &node.curr_trade, sizeof(Trade));
+        std::memcpy(address, &node.curr_trade, sizeof(matching_engine::Trade));
         update_index_and_seq();
     }
 
     // Returns a copy of the trade object
-    Trade trade_ring_buffer::get_trade() {
-        Trade trade_copy;
+    matching_engine::Trade trade_ring_buffer::get_trade() {
+        matching_engine::Trade trade_copy;
         get_trade(static_cast<void *>(&trade_copy));
         return trade_copy;
     }

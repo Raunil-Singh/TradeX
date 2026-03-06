@@ -19,7 +19,7 @@ namespace TradeRingBuffer {
 
     // Struct that stores the 
     struct alignas(64) item_node {
-        Trade curr_trade;
+        matching_engine::Trade curr_trade;
         std::atomic<uint64_t> seq;
     };
 
@@ -37,13 +37,13 @@ namespace TradeRingBuffer {
         ~trade_ring_buffer();
 
         // Producer APIs
-        bool add_trade(Trade &);                // Function used for adding data to ring buffer
+        bool add_trade(matching_engine::Trade &);                // Function used for adding data to ring buffer
 
         // Consumer APIs
         bool any_new_trade();                   // Returns true if there is an unprocessed trade
         bool lagged_out();                      // Returns true if some unread data was overwritten
         void get_trade(void *);                 // Returns true is the new data was copied successfully directly into 'address'
-        Trade get_trade();                      // Returns an copy of the data
+        matching_engine::Trade get_trade();                      // Returns an copy of the data
 
     private:
         void update_index_and_seq();            // Updates index and next_expected_seq after reading a trade

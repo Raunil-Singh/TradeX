@@ -16,7 +16,7 @@
 
 static const auto time1 = std::chrono::microseconds(1);
 constexpr static int maxTradesPerFile{10'000'000}; //change later
-constexpr static int64_t fileSize{maxTradesPerFile * sizeof(Trade)}; //Calculating the max file size, depending that all trades never exceed this amount
+constexpr static int64_t fileSize{maxTradesPerFile * sizeof(matching_engine::Trade)}; //Calculating the max file size, depending that all trades never exceed this amount
 const int static page_size{getpagesize()};
 const int static pages_per_chunk{4}; //Having fixed chunk size
 const int chunk_size{pages_per_chunk * page_size};
@@ -69,7 +69,7 @@ namespace TradeProcessor{
                 }
                 //write into our memory block
                 trBuffer.get_trade(mmapPtr + writeOffset);
-                writeOffset += sizeof(Trade);
+                writeOffset += sizeof(matching_engine::Trade);
                 //update current chunk to be most up to date
                 if(writeOffset > curr_chunk * chunk_size){
                     curr_chunk.fetch_add((writeOffset - curr_chunk * chunk_size) / chunk_size, std::memory_order_release);
@@ -136,7 +136,7 @@ int main(){
 
     TradeRingBuffer::trade_ring_buffer trb(true);
     for(int i = 0; i < maxTradesPerFile; i++){
-        Trade* t = new Trade();
+        matching_engine::Trade* t = new matching_engine::Trade();
         trb.add_trade(*t);
     }
     auto tp1 = std::chrono::steady_clock::now();

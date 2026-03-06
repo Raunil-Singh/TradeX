@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cstdint>
 
+namespace matching_engine{
 
 typedef struct {
     uint64_t trade_id;
@@ -15,5 +16,5 @@ typedef struct {
     uint32_t symbol_id;
     int32_t quantity;
 } Trade;
-
+}
 #endif
