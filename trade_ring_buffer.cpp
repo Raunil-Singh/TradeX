@@ -5,6 +5,7 @@
 #include <cstring>
 #include <sys/types.h>
 
+
 namespace TradeRingBuffer {
 
     trade_ring_buffer::trade_ring_buffer(bool IsProducer) :

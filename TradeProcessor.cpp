@@ -22,13 +22,12 @@ const int static pages_per_chunk{4}; //Having fixed chunk size
 const int chunk_size{pages_per_chunk * page_size};
 constexpr static double reallocation_threshold{0.5};
 static int fileNumber{1};
-bool marketOpen{true};
+std::atomic<bool> marketOpen{true};
 static int writerDuration;
 static int persistenceDuration;
 namespace TradeProcessor{
     class TradeProcessor{
     private:
-        std::atomic_uint64_t safeOffset{0};
         std::atomic_uint32_t curr_chunk{0};
         uint8_t* mmapPtr;
         uint8_t* mmapPtrTemp;
@@ -37,8 +36,6 @@ namespace TradeProcessor{
         int fd;
         std::atomic_bool t2done{false};
         TradeRingBuffer::trade_ring_buffer trBuffer;
-        std::shared_mutex smutex;
-        std::condition_variable cv;
 
 
     public:
@@ -53,6 +50,7 @@ namespace TradeProcessor{
             }
             ftruncate(fd, fileSize);//increase file size
             mmapPtr = static_cast<uint8_t*> (mmap(nullptr, fileSize, PROT_WRITE, MAP_SHARED, fd, 0));
+            madvise(mmapPtr, fileSize, MADV_WILLNEED);
             if(mmapPtr == MAP_FAILED){
                 //error in mmap, based on errno, handle
             }
@@ -63,15 +61,15 @@ namespace TradeProcessor{
             uint64_t writeOffset{0};
             auto tstart = std::chrono::steady_clock::now();
             // std::thread reallocatorThread(reallocator); why is this here
-            while(true){
-                while(!trBuffer.any_new_trade()){
+            while(marketOpen || trBuffer.any_new_trade()){ //add in proper 
+                while(!trBuffer.any_new_trade()){ // potential fix and backoff?
 
                 }
                 //write into our memory block
                 trBuffer.get_trade(mmapPtr + writeOffset);
                 writeOffset += sizeof(matching_engine::Trade);
                 //update current chunk to be most up to date
-                if(writeOffset > curr_chunk * chunk_size){
+                if(writeOffset >= (curr_chunk + 1) * chunk_size){
                     curr_chunk.fetch_add((writeOffset - curr_chunk * chunk_size) / chunk_size, std::memory_order_release);
                 }
                 /*This is the most problematic section, as we're updating global mmapPtr, but that affects our persistence thread as well.
@@ -104,7 +102,7 @@ namespace TradeProcessor{
 
                     continue;
                 }
-                msync(mmapPtr + local_chunk_counter * chunk_size, (curr_chunk - local_chunk_counter) * chunk_size, MS_ASYNC);
+                msync(mmapPtr + local_chunk_counter * chunk_size, (curr_chunk - local_chunk_counter) * chunk_size, MS_ASYNC); // potential spin wait workaround like above
                 local_chunk_counter = curr_chunk.load(std::memory_order_acquire);
             }
             if(local_chunk_counter != curr_chunk.load(std::memory_order_relaxed)){
