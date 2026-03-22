@@ -13,12 +13,15 @@
 #include <shared_mutex>
 #include <mutex>
 #include <condition_variable>
+#include <array>
 
 static const auto time1 = std::chrono::microseconds(1);
 constexpr static int maxTradesPerFile{10'000'000}; //change later
 constexpr static int64_t fileSize{maxTradesPerFile * sizeof(matching_engine::Trade)}; //Calculating the max file size, depending that all trades never exceed this amount
+const std::string path{"./file_output/"};
 const int static page_size{getpagesize()};
 const int static pages_per_chunk{4}; //Having fixed chunk size
+const size_t mem_regions(8);
 const int chunk_size{pages_per_chunk * page_size};
 constexpr static double reallocation_threshold{0.5};
 static int fileNumber{1};
@@ -36,24 +39,26 @@ namespace TradeProcessor{
         int fd;
         std::atomic_bool t2done{false};
         TradeRingBuffer::trade_ring_buffer trBuffer;
-
+        std::array<std::pair<uint64_t, uint8_t*>, mem_regions> memRegions;
+        std::array<int, mem_regions> fdArray;
 
     public:
         TradeProcessor(std::string fileName_):
         fileName(fileName_),
         trBuffer(false)
         {
-            //fileName must follow our convention, specified by reallocator
-            fd = open(fileName.data(), O_CREAT|O_RDWR, 0644);
-            if(fd == -1){
-                //error in opening file
-            }
-            ftruncate(fd, fileSize);//increase file size
-            mmapPtr = static_cast<uint8_t*> (mmap(nullptr, fileSize, PROT_WRITE, MAP_SHARED, fd, 0));
-            madvise(mmapPtr, fileSize, MADV_WILLNEED);
-            if(mmapPtr == MAP_FAILED){
-                //error in mmap, based on errno, handle
-            }
+            
+
+
+            // //fileName must follow our convention, specified by reallocator
+            // fd = open((path + fileName).data(), O_CREAT|O_RDWR, 0644);
+            // if(fd == -1){
+            //     //error in opening file
+            // }
+            // ftruncate(fd, fileSize);//increase file size
+            // mmapPtr = static_cast<uint8_t*> (mmap(nullptr, fileSize, PROT_WRITE, MAP_SHARED, fd, 0));
+            // madvise(mmapPtr, fileSize, MADV_WILLNEED);
+            
         }
 
         void writerThread(){
@@ -118,8 +123,8 @@ namespace TradeProcessor{
             //do we need strict memory ordering here, and how to optimize any overusage of atomics
             while(marketOpen||!t2done.load(std::memory_order_acquire)){
                 if(curr_chunk.load(std::memory_order_relaxed) * chunk_size > reallocation_threshold * fileSize){
-                    std::string file_name = "file_" + std::to_string(++fileNumber);
-                    fd = open(file_name.data(), O_CREAT|O_RDWR, 0644); // updated file descriptor
+                    std::string file_name = "file" + std::to_string(++fileNumber);
+                    fd = open((path + file_name).data(), O_CREAT|O_RDWR, 0644); // updated file descriptor
                     ftruncate(fd, fileSize); //size allocated
                     mmapPtrTemp = static_cast<uint8_t*>(mmap(nullptr, fileSize, PROT_WRITE, MAP_SHARED, fd, 0));
                 }

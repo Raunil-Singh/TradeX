@@ -1,0 +1,39 @@
+#include "trade.h"
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <atomic>
+#include <thread>
+#include <chrono>
+#include <string>
+#include <string_view>
+#include <cstring>
+#include "trade_ring_buffer.h"
+#include <shared_mutex>
+#include <mutex>
+#include <condition_variable>
+#include <array>
+#include <utility>
+
+const size_t mem_regions(8);
+static int fileNumber{1};
+constexpr static int maxTradesPerFile{10'000'000}; //change later
+constexpr static int64_t fileSize{maxTradesPerFile * sizeof(matching_engine::Trade)}; //Calculating the max file size, depending that all trades never exceed this amount
+const std::string path{"./file_output/"};
+const int static page_size{getpagesize()};
+const int static pages_per_chunk{4}; //Having fixed chunk size
+
+class ring_buffer_mem
+{
+    private:
+        std::array<std::pair<std::atomic_uint64_t, uint8_t*>, mem_regions> memRegions;
+        std::array<int, mem_regions> fdArray;
+        std::string file_name_base;
+        std::atomic_uint64_t head;
+        std::atomic_uint64_t tail;
+
+    public:
+        ring_buffer_mem(std::string);
+        bool get_region((uint8_t*)&); //get a region of memory to consume 
+        bool giveRegion(uint8_t*); //return a region of memory to be consumed
+};
