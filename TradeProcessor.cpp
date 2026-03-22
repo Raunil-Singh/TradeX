@@ -1,5 +1,4 @@
 /* This is not robust yet, as we're dealing with hand off issues with the block. Refer to writer thread for more details.*/
-#include "trade.h"
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -9,11 +8,14 @@
 #include <string>
 #include <string_view>
 #include <cstring>
-#include "trade_ring_buffer.h"
 #include <shared_mutex>
 #include <mutex>
 #include <condition_variable>
 #include <array>
+
+#include "trade.h"
+#include "trade_ring_buffer.h"
+#include "ring_buffer.h"
 
 static const auto time1 = std::chrono::microseconds(1);
 constexpr static int maxTradesPerFile{10'000'000}; //change later
@@ -28,6 +30,8 @@ static int fileNumber{1};
 std::atomic<bool> marketOpen{true};
 static int writerDuration;
 static int persistenceDuration;
+
+
 namespace TradeProcessor{
     class TradeProcessor{
     private:
@@ -39,13 +43,16 @@ namespace TradeProcessor{
         int fd;
         std::atomic_bool t2done{false};
         TradeRingBuffer::trade_ring_buffer trBuffer;
-        std::array<std::pair<uint64_t, uint8_t*>, mem_regions> memRegions;
+        ring_buffer_mem rb_write;
+        ring_buffer_mem rb_persist;
         std::array<int, mem_regions> fdArray;
 
     public:
         TradeProcessor(std::string fileName_):
         fileName(fileName_),
-        trBuffer(false)
+        trBuffer(false),
+        rb_write("file_", fdArray),
+        rb_persist(fdArray)
         {
             
 
@@ -65,29 +72,41 @@ namespace TradeProcessor{
             //no shutdown implemented yet. 
             uint64_t writeOffset{0};
             auto tstart = std::chrono::steady_clock::now();
+            uint8_t* mem_region = nullptr;
             // std::thread reallocatorThread(reallocator); why is this here
             while(marketOpen || trBuffer.any_new_trade()){ //add in proper 
                 while(!trBuffer.any_new_trade()){ // potential fix and backoff?
 
                 }
+                if (mem_region == nullptr)
+                {
+                    if (rb_write.get_region(mem_region))
+                    {
+                        writeOffset = 0;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
                 //write into our memory block
                 trBuffer.get_trade(mmapPtr + writeOffset);
                 writeOffset += sizeof(matching_engine::Trade);
-                //update current chunk to be most up to date
-                if(writeOffset >= (curr_chunk + 1) * chunk_size){
-                    curr_chunk.fetch_add((writeOffset - curr_chunk * chunk_size) / chunk_size, std::memory_order_release);
-                }
+
+                //NOT REQUIRED
+                // //update current chunk to be most up to date
+                // if(writeOffset >= (curr_chunk + 1) * chunk_size){
+                //     curr_chunk.fetch_add((writeOffset - curr_chunk * chunk_size) / chunk_size, std::memory_order_release);
+                // }
+
+
                 /*This is the most problematic section, as we're updating global mmapPtr, but that affects our persistence thread as well.
                 The root cause behind this is the fact that we have no guarantees we will not exceed our original mmap block. We need a way
                 to reliably handle switchover to new blocks with persistence thread still having the info of the old block, as well as
                 not creating too many blocks that we exceed ram storage.*/
                 if(writeOffset >= fileSize){
-                    // curr_chunk.store(0);
-                    // mmapPtr = mmapPtrTemp;
-                    // writeOffset = 0;
-                    // munmap(mmapPtr); //This is BAD
-
-                    break;
+                    mem_region = nullptr;
+                    //break;
                 }
             }
             curr_chunk++;
@@ -99,25 +118,59 @@ namespace TradeProcessor{
         /*Only has an issue with losing previous block before all chunks could be synced.*/
         void persistenceThread(){
             auto tstart = std::chrono::steady_clock::now();
-            uint32_t local_chunk_counter{};
+            // uint32_t local_chunk_counter{};
+            uint8_t* mem_region = nullptr;
             while(!t2done.load(std::memory_order_acquire)){
-
-                //check if local_chunk != global, improve this part
-                if(curr_chunk.load(std::memory_order_acquire) == local_chunk_counter){
-
-                    continue;
+                if(mem_region == nullptr) // want potential backoffs, if necessary?
+                {
+                    if (!rb_persist.get_region(mem_region)) // get new changes
+                    {
+                        continue;
+                    }
                 }
-                msync(mmapPtr + local_chunk_counter * chunk_size, (curr_chunk - local_chunk_counter) * chunk_size, MS_ASYNC); // potential spin wait workaround like above
-                local_chunk_counter = curr_chunk.load(std::memory_order_acquire);
+                // //check if local_chunk != global, improve this part
+                // if(curr_chunk.load(std::memory_order_acquire) == local_chunk_counter){
+
+                //     continue;
+                // }
+
+                msync(mem_region, fileSize, MS_ASYNC);
+                rb_write.give_region(mem_region);
+                mem_region = nullptr;
+                // msync(mem_region + local_chunk_counter * chunk_size, (curr_chunk - local_chunk_counter) * chunk_size, MS_ASYNC); // potential spin wait workaround like above
+                // local_chunk_counter = curr_chunk.load(std::memory_order_acquire);
+
+                // if (local_chunk_counter * chunk_size >= maxTradesPerFile) //if exceeded filesize (possibly increase file size by some amount so that we dont crash?), but will we ever exceed, if everything is multiples??
+                // {
+                //     rb_write.give_region(mem_region);
+                //     mem_region = nullptr;
+                // }
             }
-            if(local_chunk_counter != curr_chunk.load(std::memory_order_relaxed)){
-                msync(mmapPtr + local_chunk_counter * chunk_size, (curr_chunk - local_chunk_counter) * chunk_size, MS_ASYNC);
+
+            //could all below be put in above working queue???
+            // if(local_chunk_counter != curr_chunk.load(std::memory_order_relaxed) && mem_region != nullptr){
+            //     msync(mem_region + local_chunk_counter * chunk_size, (curr_chunk - local_chunk_counter) * chunk_size, MS_ASYNC);
+            // }
+
+            msync(mem_region, fileSize, MS_ASYNC);
+            rb_write.give_region(mem_region);
+
+            //sync remaining regions
+            while (rb_persist.get_region(mem_region))
+            {
+                rb_write.give_region(mem_region); //for easy closure later
+                msync(mem_region, fileSize, MS_ASYNC);
+
             }
+
+            //this should be handled while closing the ring buffers
             munmap(mmapPtr, fileSize);
             close(fd);
             auto tend = std::chrono::steady_clock::now();
             persistenceDuration = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
         }
+
+
         //This is fine, no issues that we can see so far
         void reallocator(){
             //do we need strict memory ordering here, and how to optimize any overusage of atomics

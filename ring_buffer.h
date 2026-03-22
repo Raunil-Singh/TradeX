@@ -14,6 +14,7 @@
 #include <condition_variable>
 #include <array>
 #include <utility>
+#include <cstdint>
 
 const size_t mem_regions(8);
 static int fileNumber{1};
@@ -33,7 +34,8 @@ class ring_buffer_mem
         std::atomic_uint64_t tail;
 
     public:
-        ring_buffer_mem(std::string);
-        bool get_region((uint8_t*)&); //get a region of memory to consume 
-        bool giveRegion(uint8_t*); //return a region of memory to be consumed
+        ring_buffer_mem(std::array<int, mem_regions>&);
+        ring_buffer_mem(std::string, std::array<int, mem_regions>&);
+        bool get_region(uint8_t*&); //get a region of memory to consume 
+        bool give_region(uint8_t*); //return a region of memory to be consumed
 };
