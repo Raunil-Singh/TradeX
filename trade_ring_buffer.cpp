@@ -7,10 +7,11 @@
 
 namespace TradeRingBuffer {
 
-    trade_ring_buffer::trade_ring_buffer(bool IsProducer) :
+    trade_ring_buffer::trade_ring_buffer(bool IsProducer, const std::string& shm_name) :
         index(0),                   // to start from beginning of ring buffer
         next_expected_seq(1),       // first expected sequence number is 1 because 0 is reserved for empty slot
         is_producer(IsProducer)
+        filename(shm_name)
     {
         // Try to create the shared memory object
         int fd = shm_open(filename.data(), O_RDWR | O_CREAT | O_EXCL, 0666);

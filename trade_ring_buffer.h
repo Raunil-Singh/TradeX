@@ -12,8 +12,6 @@
 
 namespace TradeRingBuffer {
 
-    constexpr std::string_view filename {"/Trade_Ring_Buffer"};
-
     constexpr uint64_t RING_SIZE {1 << 20};     // number of blocks of data
     constexpr uint64_t MOD       {1LL << 60};   // used for sequence number wrapping 
 
@@ -33,7 +31,7 @@ namespace TradeRingBuffer {
     // 
     class trade_ring_buffer {
     public:
-        explicit trade_ring_buffer(bool);
+        explicit trade_ring_buffer(bool IsProducer, const std::string& shm_name);       // Takes filename as parameter
         ~trade_ring_buffer();
 
         // Producer APIs
@@ -52,6 +50,7 @@ namespace TradeRingBuffer {
         uint64_t index;                         // stores the index in the ring buffer that is being accessed
         uint64_t next_expected_seq;             // calculated using MOD
         bool is_producer;                       // true if the instance is a producer   
+        std::string filename;
     };
 };
 
