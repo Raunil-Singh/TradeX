@@ -7,13 +7,17 @@
 #include <string>
 #include <vector>
 #include <atomic>
+#include <chrono>
 
 #include "order.h"
 #include "trade.h"
 #include "order_book.h"
+#include "trade_ring_buffer.h"
 
 namespace matching_engine {
 OrderBookManager bookmanager;
+
+std::atomic<uint64_t> next_trade_id{1};
 
 template<typename T>
 class alignas(64) RingBuffer {
@@ -53,16 +57,25 @@ class MatchingEngineDispatcher {
 private:
     const int NUM_GROUPS = 5;
     std::vector<RingBuffer<Order>> group_queues;
+    std::vector<TradeRingBuffer::trade_ring_buffer*> trade_buffers;             // One ring buffer per group_queue
 
 public:
     MatchingEngineDispatcher(uint64_t capacity) {
         for(int i=0; i<NUM_GROUPS; i++) {
-            group_queues.emplace_back(capacity);
+            group_queues.emplace_back(capacity);    
+            std::string shm_name = "/Trade_Ring_Buffer_" + std::to_string(i);   // Creating filenames      
+            trade_buffers.push_back(new TradeRingBuffer::trade_ring_buffer(true, shm_name));
+        }
+    }
+
+    ~MatchingEngineDispatcher() {
+        for(auto* t : trade_buffers) {
+            delete t;
         }
     }
 
     void start_dispatcher() {
-        // This would receive orders from EMS via TCP socket
+        // This would receive orders from EMS via TCP socket    
     }
 
     void dispatch_order(const Order& order) {
@@ -74,13 +87,24 @@ public:
         Order cur_order;
         while(true) {
             if(group_queues[group_no].pop(cur_order)) {
-                process_order(cur_order);
+                process_order(cur_order, group_no);
             }
         }
     }
 
-    void process_order(Order order) {
+    void publish_trade(int group_no, uint64_t buy_order_id, uint64_t sell_order_id, uint32_t symbol_id, uint64_t price, int32_t quantity) {
+        Trade t;
+        t.trade_id = next_trade_id.fetch_add(1, std::memory_order_relaxed);
+        t.buy_order_id = buy_order_id;
+        t.sell_order_id = sell_order_id;
+        t.symbol_id = symbol_id;
+        t.price = price;
+        t.quantity = quantity;
+        t.timestamp_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+        trade_buffers[group_no]->add_trade(t);
+    }
 
+    void process_order(Order order, int group_no) {
         if(order.type == OrderType::BUY) {
             OrderBook *book = bookmanager.get((order.symbol_id)%1000);
             if(book->bestsellprice() > order.price) {
@@ -94,12 +118,17 @@ public:
                     current_price++;
                     continue;
                 }
-                if(book->getpricelevels(price_index)->gethead()->order.quantity > order.quantity) {
-                    uint64_t new_quantity = book->getpricelevels(price_index)->gethead()->order.quantity - order.quantity;
+                OrderNode* best_sell = book->getpricelevels(price_index)->gethead();
+                if(best_sell->order.quantity > order.quantity) {
+                    uint64_t fill_qty = order.quantity;
+                    publish_trade(group_no, order.order_id, best_sell->order.order_id, order.symbol_id, current_price, fill_qty);
+                    uint64_t new_quantity = best_sell->order.quantity - order.quantity;
                     book->modifyQuantity(current_price, new_quantity);
                     break;
                 } else {
-                    order.quantity -= book->getpricelevels(price_index)->gethead()->order.quantity;
+                    uint64_t fill_qty = best_sell->order.quantity;
+                    publish_trade(group_no, order.order_id, best_sell->order.order_id, order.symbol_id, current_price, fill_qty);
+                    order.quantity -= fill_qty;
                     book->removeOrder(current_price);
                 }
             }
@@ -119,12 +148,17 @@ public:
                     current_price--;
                     continue;
                 }
+                OrderNode* best_buy = book->getpricelevels(price_index)->gethead();
                 if(book->getpricelevels(price_index)->gethead()->order.quantity > order.quantity) {
-                    uint64_t new_quantity = book->getpricelevels(price_index)->gethead()->order.quantity - order.quantity;
-                    book->modifyQuantity(current_price, new_quantity);
+                    uint64_t fill_qty = order.quantity;
+                    publish_trade(group_no, best_buy->order.order_id, order.order_id, order.symbol_id, current_price, fill_qty);
+                    uint64_t new_quantity = best_buy->order.quantity - order.quantity;
+                    order.quantity = 0;
                     break;
                 } else {
-                    order.quantity -= book->getpricelevels(price_index)->gethead()->order.quantity;
+                    uint64_t fill_qty = best_buy->order.quantity;
+                    publish_trade(group_no, best_buy->order.order_id, order.order_id, order.symbol_id, current_price, fill_qty);
+                    order.quantity -= fill_qty;
                     book->removeOrder(current_price);
                 }
             }
@@ -149,8 +183,8 @@ public:
 }
 
 int main() {
-    std::cout << "Starting System...";
-    std::cout<<sizeof(matching_engine::Order)<<std::endl;
+    std::cout << "Starting System..." << std::endl;
+    std::cout << "Order size: " << sizeof(matching_engine::Order) << std::endl;
     matching_engine::MatchingEngineDispatcher dispatcher(10000); // Random value of capacity passed
     
     std::thread dispatcher_system([&dispatcher]() {
@@ -160,18 +194,3 @@ int main() {
     
     return 0;
 }
-
-/*
-
-B<Actual Symbol name>
-
-A -> BA -> 26
-
-<character code> * 32 ^ 3 + 
-<character code> * 32 ^ 2 + 
-<character code> * 32 ^ 1 + 
-<character code> * 32 ^ 0 
-
-2^5 = (1<<5)
-
-*/
