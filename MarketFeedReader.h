@@ -1,42 +1,45 @@
 #ifndef MARKETREADER
 #define MARKETREADER
 
+#define _GNU_SOURCE
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <errno.h>
+
 #include "trade_ring_buffer.h"
 #include "retransmitter.h"
 #include "message.h"
+#include "spsc_queue.h"
 
-class MarketFeedReader {
-    private:
-        TradeRingBuffer::trade_ring_buffer trb;
-        uint64_t global_seq{1};
-        Retransmitter rt;
+constexpr size_t msg_per_packet = 23;
+constexpr size_t MAX_MSG_SIZE   = msg_per_packet * sizeof(MarketDataMessage); // 23 * 64 = 1472
+static uint64_t seq_num{};
+typedef struct {
+    struct mmsghdr *msgs;
+    struct iovec   *iov;
+    char           *buffer;
+    int             capacity;
+} batch_t;
 
-    public:
-        MarketFeedReader(): trb(false)
-        {}//create Retransmitter class, create thread for retransmitter
-        MarketDataMessage formatMarketData(matching_engine::Trade& trade);
-        void send_multicast (MarketDataMessage& msg);
-        
-        void transmitThread ()
-        {
-            while(true) // add conditions later
-            {
-                if (trb.lagged_out())
-                {
-                    //deal with lag
-                }
-                while (!trb.any_new_trade())
-                {
-                    //spinning while waiting for trades
-                }
+class MarketFeedReader
+{
+private:
+    TradeRingBuffer::trade_ring_buffer trb;
+    uint64_t global_seq{1};
+    spsc_queue queue;
+    int sockfd;
+    struct sockaddr_in addr;
+    MarketFeedReader();
 
-                matching_engine::Trade trade = trb.get_trade();
-                MarketDataMessage msg = formatMarketData(trade);
-                send_multicast(msg);
-                rt.store(msg); //call store within Retransmitter
-            }
-        }
-
+    MarketDataMessage formatMarketData(matching_engine::Trade &&trade); // fix: return by value, not &&
+    void readThread();
+    void sendThread();
+    void init_batch(batch_t*, int cap);
 };
 
 #endif
