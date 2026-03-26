@@ -28,18 +28,19 @@ typedef struct {
 
 class MarketFeedReader
 {
-private:
-    TradeRingBuffer::trade_ring_buffer trb;
-    uint64_t global_seq{1};
-    spsc_queue queue;
-    int sockfd;
-    struct sockaddr_in addr;
-    MarketFeedReader();
+    private:
+        TradeRingBuffer::trade_ring_buffer trb;
+        uint64_t global_seq{1};
+        spsc_queue queue;
+        int sockfd;
+        struct sockaddr_in addr;
+        MarketFeedReader();
 
-    MarketDataMessage formatMarketData(matching_engine::Trade &&trade); // fix: return by value, not &&
-    void readThread();
-    void sendThread();
-    void init_batch(batch_t*, int cap);
+    public:
+        MarketDataMessage formatMarketData(matching_engine::Trade &&trade); // fix: return by value, not &&
+        void readThread();
+        void sendThread();
+        void init_batch(batch_t*, int cap);
 };
 
 #endif

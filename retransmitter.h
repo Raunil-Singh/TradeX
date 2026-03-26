@@ -5,7 +5,7 @@ static const uint64_t SIZE{}; // configure slot sizes to service requests for se
 class Retransmitter{
     MarketDataMessage slots[SIZE];
     public:
+        Retransmitter();
         void store(MarketDataMessage& msg);
-
         void listener(); //separate thread that processes requests by clients for missing messages
 };
