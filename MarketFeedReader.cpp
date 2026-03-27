@@ -12,7 +12,7 @@ MarketFeedReader::MarketFeedReader() : trb(false)
     setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize)); // increases TX (send) buffer size
     addr.sin_family = AF_INET; // operating on IPV4
     addr.sin_port = htons(5000); //listening to port 5000, converts to big endian network order bytes?
-    inet_pton(AF_INET, "239:1:1:1", &addr.sin_addr); // writes the binary address for the multicast group
+    inet_pton(AF_INET, "239.1.1.1", &addr.sin_addr); // writes the binary address for the multicast group
 
     setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, &local_ip, sizeof(local_ip)); //setting interface based on ip
 }
