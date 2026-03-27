@@ -19,9 +19,8 @@ enum class OrderType {
 enum class OrderExecutionType{
     MARKET,             
     LIMIT,
-    //FOK,
-    //IOC,
-    //ICEBERG
+    STOP_LOSS,
+    ICEBERG
 };
 
 //Order Structure

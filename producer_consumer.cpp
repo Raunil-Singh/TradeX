@@ -14,6 +14,12 @@
 #include "order_book.h"
 #include "trade_ring_buffer.h"
 
+namespace shared_data {
+    struct MarketState {
+        uint64_t last_price[1000]; 
+    };
+}
+
 namespace matching_engine {
 OrderBookManager bookmanager;
 
@@ -58,6 +64,7 @@ private:
     const int NUM_GROUPS = 5;
     std::vector<RingBuffer<Order>> group_queues;
     std::vector<TradeRingBuffer::trade_ring_buffer*> trade_buffers;             // One ring buffer per group_queue
+    shared_data::MarketState* shared_ltp_ptr;
 
 public:
     MatchingEngineDispatcher(uint64_t capacity) {
@@ -66,6 +73,14 @@ public:
             std::string shm_name = "/Trade_Ring_Buffer_" + std::to_string(i);   // Creating filenames      
             trade_buffers.push_back(new TradeRingBuffer::trade_ring_buffer(true, shm_name));
         }
+
+        int shm_fd = shm_open("/oms_market_data", O_CREAT | O_RDWR, 0666);
+        ftruncate(shm_fd, sizeof(shared_data::MarketState));
+        shared_ltp_ptr = (shared_data::MarketState*)mmap(NULL, sizeof(shared_data::MarketState), 
+                          PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+        
+        // Zero out prices initially
+        for(int i=0; i<1000; i++) shared_ltp_ptr->last_price[i] = 0;
     }
 
     ~MatchingEngineDispatcher() {
@@ -102,6 +117,7 @@ public:
         t.quantity = quantity;
         t.timestamp_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
         trade_buffers[group_no]->add_trade(t);
+        shared_ltp_ptr->last_price[symbol_id % 1000] = price;
     }
 
     void process_order(Order order, int group_no) {
