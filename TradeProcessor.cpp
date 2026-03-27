@@ -134,7 +134,7 @@ namespace TradeProcessor{
                 //     continue;
                 // }
 
-                msync(mem_region, fileSize, MS_ASYNC);
+                msync(mem_region, fileSize, MS_ASYNC); //want to change this to MS_SYNC
                 rb_write.give_region(mem_region);
                 mem_region = nullptr;
                 // msync(mem_region + local_chunk_counter * chunk_size, (curr_chunk - local_chunk_counter) * chunk_size, MS_ASYNC); // potential spin wait workaround like above
@@ -170,7 +170,7 @@ namespace TradeProcessor{
             persistenceDuration = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
         }
 
-
+        //UNNECESSARY;
         //This is fine, no issues that we can see so far
         void reallocator(){
             //do we need strict memory ordering here, and how to optimize any overusage of atomics
