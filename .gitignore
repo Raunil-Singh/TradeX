@@ -3,3 +3,4 @@ file_output/
 .vscode
 file1.txt
 .DS_Store
+trade_parser.cpp
