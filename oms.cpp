@@ -12,7 +12,7 @@ OrderManagementSystem::OrderManagementSystem(matching_engine::MatchingEngineDisp
         shared_memory_ptr = (MarketData*)mmap(NULL, sizeof(uint64_t) * MAX_SYMBOLS, PROT_READ, MAP_SHARED, shm_fd, 0);
     }
     for(int i = 0; i < NUM_GROUPS; i++) {
-        // Reading from multiple ring buffers that the matching engine pushes into 
+        trade_consumers.push_back(new TradeRingBuffer::trade_ring_buffer(false, i));
     }
 }
 
@@ -66,21 +66,20 @@ void OrderManagementSystem::listenForClientOrder() {
         InternalOrder out;
         while(incoming_orders.pop(new_order)) {
             //ICEBERG
-            if (new_order.execution_type == matching_engine::OrderExecutionType::ICEBERG) {
-                // Friend's Iceberg Logic
+            if (new_order.execution_type == ClientOrderType::ICEBERG) {
                 active_icebergs[new_order.client_order_id] = new_order;
                 send_slice(new_order.client_order_id);
             }
             //STOP LOSS
-            else if (new_order.execution_type == matching_engine::OrderExecutionType::STOP_LOSS) {
+            else if (new_order.execution_type == ClientOrderType::STOP_LOSS) {
                 registerStopLoss(new_order); 
             } 
             //MARKET
-            else if (new_order.execution_type == matching_engine::OrderExecutionType::MARKET) {
+            else if (new_order.execution_type == ClientOrderType::MARKET) {
                 out.execution_type = matching_engine::OrderExecutionType::MARKET;
                 out.order_id = new_order.client_order_id;
                 out.quantity = new_order.quantity;
-                out.symbol_id = find_id(new_order.symbol);
+                out.symbol_id = new_order.symbol_id;
                 out.timestamp = getCurrentTimestamp();
                 out.trader_id = new_order.trader_id;
                 out.type = new_order.type;
@@ -92,7 +91,7 @@ void OrderManagementSystem::listenForClientOrder() {
                 out.execution_type = matching_engine::OrderExecutionType::LIMIT;
                 out.order_id = new_order.client_order_id;
                 out.quantity = new_order.quantity;
-                out.symbol_id = find_id(new_order.symbol);
+                out.symbol_id = new_order.symbol_id;
                 out.timestamp = getCurrentTimestamp();
                 out.trader_id = new_order.trader_id;
                 out.type = new_order.type;
@@ -101,16 +100,22 @@ void OrderManagementSystem::listenForClientOrder() {
             }
         }
 
-        //checks for changes in last traded price and triggers SL
-        if(shared_memory_ptr){
-        for (uint32_t i=0; i<1000; i++) {
-            uint64_t current_ltp = shared_memory_ptr[i].last_price;
-            
-            if (current_ltp != last_seen_price[i]) {
-                checkAndTriggerSL(i, current_ltp);
-                last_seen_price[i] = current_ltp;
+        for (int i = 0; i < NUM_GROUPS; i++) {
+            while (trade_consumers[i]->any_new_trade()) {
+                matching_engine::Trade t = trade_consumers[i]->get_trade();
+                check_fill(t);
             }
         }
+
+        //checks for changes in last traded price and triggers SL
+        if(shared_memory_ptr){
+            for (uint32_t i=0; i<1000; i++) {
+                uint64_t current_ltp = shared_memory_ptr[i].last_price;
+                if (current_ltp != last_seen_price[i]) {
+                    checkAndTriggerSL(i, current_ltp);
+                    last_seen_price[i] = current_ltp;
+                }
+            }
         }
         
     }
@@ -137,7 +142,7 @@ void OrderManagementSystem::registerStopLoss(const ClientOrder& ord) {
     immediate_ord.quantity = ord.quantity;
     immediate_ord.execution_type = matching_engine::OrderExecutionType::MARKET;
 
-    auto& container = stop_loss_registry[sym_id%1000];
+    auto& container = stop_loss_registry[(uint32_t)sym_id%1000];
     if (container.sell_stops.capacity() == 0) container.init();
 
     if (ord.type == matching_engine::OrderType::BUY) {
@@ -208,7 +213,7 @@ void OrderManagementSystem::checkAndTriggerSL(uint32_t sym_id, uint64_t current_
     }
 }
 
-//ICEBERG Processing
+ /*       //ICEBERG Processing
 uint64_t OrderManagementSystem::submit_iceberg_order(uint32_t symbol_id, uint64_t price, matching_engine::OrderType side, uint32_t total_qty, uint32_t display_qty, uint64_t trader_id) {
     ClientOrder order;
     order.client_order_id = next_client_order_id.fetch_add(1, std::memory_order_relaxed);
@@ -219,12 +224,13 @@ uint64_t OrderManagementSystem::submit_iceberg_order(uint32_t symbol_id, uint64_
     order.display_quantity = display_qty;
     order.filled_quantity = 0;
     order.trader_id = trader_id;
+    order.execution_type = ClientOrderType::ICEBERG;
     order.is_active = true;
 
     while(!incoming_orders.push(order)) { // Pushing into queue for oms thread to pick up
     }
     return order.client_order_id;
-}
+} */
 
 void OrderManagementSystem::send_slice(uint64_t parent_id) {
     ClientOrder& parent = active_icebergs[parent_id];
@@ -254,6 +260,7 @@ void OrderManagementSystem::send_slice(uint64_t parent_id) {
 }
 
 void OrderManagementSystem::check_fill(const matching_engine::Trade& trade) {
+    if (!(trade.buy_order_id & ICEBERG_BIT) && !(trade.sell_order_id & ICEBERG_BIT)) return;
     // Find if the buy or sell order was ours
     uint64_t our_child_id = 0;
     if(child_to_parent.count(trade.buy_order_id)) our_child_id = trade.buy_order_id;

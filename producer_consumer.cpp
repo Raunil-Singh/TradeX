@@ -61,7 +61,7 @@ public:
 
 class MatchingEngineDispatcher {
 private:
-    const int NUM_GROUPS = 5;
+    const int NUM_GROUPS = 2;
     std::vector<RingBuffer<Order>> group_queues;
     std::vector<TradeRingBuffer::trade_ring_buffer*> trade_buffers;             // One ring buffer per group_queue
     shared_data::MarketState* shared_ltp_ptr;
@@ -71,7 +71,7 @@ public:
         for(int i=0; i<NUM_GROUPS; i++) {
             group_queues.emplace_back(capacity);    
             std::string shm_name = "/Trade_Ring_Buffer_" + std::to_string(i);   // Creating filenames      
-            trade_buffers.push_back(new TradeRingBuffer::trade_ring_buffer(true, shm_name));
+            trade_buffers.push_back(new TradeRingBuffer::trade_ring_buffer(true, i));
         }
 
         int shm_fd = shm_open("/oms_market_data", O_CREAT | O_RDWR, 0666);
@@ -87,10 +87,6 @@ public:
         for(auto* t : trade_buffers) {
             delete t;
         }
-    }
-
-    void start_dispatcher() {
-        // This would receive orders from EMS via TCP socket    
     }
 
     void dispatch_order(const Order& order) {
@@ -185,14 +181,11 @@ public:
     }
 
     void start() { // Dispatcher thread
-        std::thread dispatcher_thread(&MatchingEngineDispatcher::start_dispatcher, this);
-
         std::vector<std::thread> group_threads;
         for (int i = 0; i < NUM_GROUPS; ++i) {
             group_threads.emplace_back(&MatchingEngineDispatcher::start_group_thread, this, i);
         }
-        
-        dispatcher_thread.join();
+    
         for (auto& t : group_threads) t.join();
     }
 };

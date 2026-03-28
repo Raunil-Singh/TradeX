@@ -15,17 +15,25 @@
 
 namespace oms {
 
+enum class ClientOrderType {
+    MARKET,
+    LIMIT,
+    STOP_LOSS,
+    ICEBERG
+};
+
 typedef struct {
     uint64_t client_order_id;
     uint64_t price;
     uint64_t trigger_price;
     char symbol[8];
+    uint32_t symbol_id; 
     uint64_t trader_id;
     matching_engine::OrderType type;  
     uint32_t quantity;
     uint32_t display_quantity;
     uint32_t filled_quantity;
-    matching_engine::OrderExecutionType execution_type;
+    ClientOrderType execution_type;     
     bool is_active;
 
 } ClientOrder;
@@ -50,6 +58,7 @@ private:
     static constexpr uint64_t TICK_MAX_PRICE = UINT64_MAX;
     static constexpr uint64_t TICK_MIN_PRICE = 1;
     static constexpr int MAX_SYMBOLS = 1000;
+    static constexpr uint64_t ICEBERG_BIT    = (1ULL << 63);
     int symbolLookupTable[880000]; 
 
 
@@ -67,7 +76,7 @@ private:
     uint64_t last_seen_price[MAX_SYMBOLS] = {0};
 
     struct MarketData { uint64_t last_price; };
-    MarketData* shared_memory_ptr;
+    MarketData* shared_memory_ptr = nullptr;
 
     std::unordered_map<uint64_t, ClientOrder> active_icebergs; 
     std::unordered_map<uint64_t, uint64_t> child_to_parent; // Child ID -> Parent ID
@@ -75,11 +84,11 @@ private:
     matching_engine::RingBuffer<ClientOrder> incoming_orders;
 
     std::atomic<uint64_t> next_client_order_id{1};
-    std::atomic<uint64_t> next_child_order_id{1000000}; 
+    std::atomic<uint64_t> next_child_order_id{ICEBERG_BIT | 1}; 
 
     matching_engine::MatchingEngineDispatcher* engine;
     std::vector<TradeRingBuffer::trade_ring_buffer*> trade_consumers;
-    const int NUM_GROUPS = 5;
+    const int NUM_GROUPS = 2;
 
     std::thread oms_thread;
 
@@ -92,9 +101,9 @@ public:
     ~OrderManagementSystem();
 
     void listenForClientOrder();
-
     void start(); 
     void stop();
+    uint64_t submit_iceberg_order(uint32_t symbol_id, uint64_t price, matching_engine::OrderType side, uint32_t total_qty, uint32_t display_qty, uint64_t trader_id);
 };
 
 }
