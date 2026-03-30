@@ -11,6 +11,9 @@
 
 namespace matching_engine {
 
+    constexpr int group_count = 1;
+
+
 struct alignas(64) PaddedAtomic {
     std::atomic<uint64_t> value;
 };
@@ -247,15 +250,14 @@ public:
 
 class MatchingEngineDispatcher {
 private:
-    const int NUM_GROUPS = 1;
     std::vector<std::unique_ptr<GroupProcessor>> groups;
     std::atomic<bool> terminate_flag{false};
     std::atomic<bool> is_running_flag{false};
 
 public:
     MatchingEngineDispatcher(uint64_t capacity) {
-        groups.reserve(NUM_GROUPS);
-        for(int i=0; i<NUM_GROUPS; i++) {
+        groups.reserve(group_count);
+        for(int i=0; i<group_count; i++) {
             groups.emplace_back(std::make_unique<GroupProcessor>(i, capacity));
             
         }
@@ -292,7 +294,7 @@ public:
         std::thread dispatcher_thread(&MatchingEngineDispatcher::start_dispatcher, this);
 
         std::vector<std::thread> group_threads;
-        for (int i = 0; i < NUM_GROUPS; ++i) {
+        for (int i = 0; i < group_count; ++i) {
             group_threads.emplace_back(&GroupProcessor::start_group_thread, groups[i].get(), i);
         }
 
@@ -313,7 +315,7 @@ public:
     {
         // for(auto &group : groups) {
         //     auto book_manager = group->setup_book_manager();
-        //     for(uint32_t symbol_id = 0; symbol_id < NUM_SYMBOLS; symbol_id++) {
+        //     for(uint32_t symbol_id = 0; symbol_id < group_count; symbol_id++) {
         //         book_manager->addBook(symbol_id, POOL_SIZE, lower_limits[symbol_id], upper_limits[symbol_id]);
         //     }
         // }
