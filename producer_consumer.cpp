@@ -1,10 +1,5 @@
 #include <iostream>
 #include <thread>
-#include <queue>
-#include <mutex>
-#include <condition_variable>
-#include <unordered_map>
-#include <string>
 #include <vector>
 #include <atomic>
 #include <chrono>
@@ -15,17 +10,20 @@
 #include "trade_ring_buffer.h"
 
 namespace matching_engine {
-OrderBookManager bookmanager;
 
-std::atomic<uint64_t> next_trade_id{1};
+struct alignas(64) PaddedAtomic {
+    std::atomic<uint64_t> value;
+};
+
+PaddedAtomic processed_orders;
 
 template<typename T>
 class alignas(64) RingBuffer {
 private:
     std::vector<T> buffer;
     size_t capacity;
-    std::atomic<uint64_t> head;
-    std::atomic<uint64_t> tail;
+    std::atomic<uint32_t> head;
+    std::atomic<uint32_t> tail;
 
 public:
     explicit RingBuffer(size_t cap) : capacity(cap), head(0), tail(0) {
@@ -33,8 +31,8 @@ public:
     }
 
     bool push(const T &item) {
-        uint64_t cur_tail = tail.load(std::memory_order_relaxed);
-        uint64_t next_tail = (cur_tail+1)%capacity;
+        uint32_t cur_tail = tail.load(std::memory_order_relaxed);
+        uint32_t next_tail = (cur_tail+1) & (capacity-1);
         if(next_tail == head.load(std::memory_order_acquire)) return false;
 
         buffer[cur_tail] = item;
@@ -43,129 +41,251 @@ public:
     }
 
     bool pop(T &item) {
-        uint64_t cur_head = head.load(std::memory_order_relaxed);
-        if(cur_head == tail.load(std::memory_order_acquire)) return false;
+        uint32_t cur_head = head.load(std::memory_order_relaxed);
+        while(cur_head == tail.load(std::memory_order_acquire)) return false;
 
         item = buffer[cur_head];
-        head.store((cur_head+1)%capacity, std::memory_order_release);
+        head.store((cur_head+1) & (capacity-1), std::memory_order_release);
         return true;
     }    
 };
 
+class GroupProcessor {
 
-class MatchingEngineDispatcher {
-private:
-    const int NUM_GROUPS = 5;
-    std::vector<RingBuffer<Order>> group_queues;
-    std::vector<TradeRingBuffer::trade_ring_buffer*> trade_buffers;             // One ring buffer per group_queue
+    OrderBookManager * bookmanager = nullptr;               // Owned by GroupProcessor
+    TradeRingBuffer::trade_ring_buffer trade_buffer;        // Stores the trade ring buffer for this group.
+    std::unique_ptr<RingBuffer<Order>> group_queue;         // Queue for incoming orders.
+    std::vector<int> order_count;                           // Count of orders received for each symbol
+    uint64_t next_trade_id;                                 // ID that will be used for next trade that will be enqueued
+    int symbol_count;
+    int group_no;
+    std::atomic<bool> terminate_flag{false};
+    std::atomic<bool> is_running_flag{false};
 
 public:
-    MatchingEngineDispatcher(uint64_t capacity) {
-        for(int i=0; i<NUM_GROUPS; i++) {
-            group_queues.emplace_back(capacity);    
-            std::string shm_name = "/Trade_Ring_Buffer_" + std::to_string(i);   // Creating filenames      
-            trade_buffers.push_back(new TradeRingBuffer::trade_ring_buffer(true, shm_name));
-        }
+    GroupProcessor(int group_no, size_t queue_capacity) :
+        group_queue(std::make_unique<RingBuffer<Order>>(queue_capacity)),
+        trade_buffer{true, group_no},
+        next_trade_id(1),
+        group_no(group_no) {
     }
 
-    ~MatchingEngineDispatcher() {
-        for(auto* t : trade_buffers) {
-            delete t;
-        }
+    ~GroupProcessor() {
+        delete bookmanager;
     }
 
-    void start_dispatcher() {
-        // This would receive orders from EMS via TCP socket    
-    }
-
-    void dispatch_order(const Order& order) {
-        group_queues[order.symbol_id/1000].push(order);
+    // MatchingEngineDispatcher will call this to add the orderbooks into the manager
+    OrderBookManager* setup_book_manager(int symbol_count = (1<<SYMBOL_BITS)) {
+        bookmanager = new OrderBookManager(symbol_count);
+        return bookmanager;
     }
 
     void start_group_thread(int group_no) {
         // Process orders from group queue 
         Order cur_order;
-        while(true) {
-            if(group_queues[group_no].pop(cur_order)) {
-                process_order(cur_order, group_no);
+        std::vector<int64_t> processing_times;
+        processing_times.reserve(9000000);
+        
+        is_running_flag.store(true, std::memory_order_release);
+        
+        while(!terminate_flag.load(std::memory_order_acquire)) {
+            if(group_queue->pop(cur_order)) {
+                // std::cout << "Processing order for group " << group_no << ": " << cur_order.order_id << std::endl;
+
+                auto start = std::chrono::high_resolution_clock::now();
+                process_order(cur_order);
+                auto end = std::chrono::high_resolution_clock::now();
+                // std::cout << "Finished processing order for group " << group_no << ": " << cur_order.order_id << std::endl << std::endl;
+                processing_times.push_back(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+                processed_orders.value.fetch_add(1, std::memory_order_relaxed);
+
             }
+        }
+    
+        std::cerr << "Analysing processing times for group " << group_no << std::endl;
+        // process_processing_times(processing_times);
+    
+    }
+
+    void terminate() {
+        terminate_flag.store(true, std::memory_order_release);
+    }
+
+    bool is_running() {
+        return is_running_flag.load(std::memory_order_acquire);
+    }
+
+
+    bool enqueue_order(const Order& order) {
+        return group_queue->push(order);
+    }
+
+    void process_processing_times(std::vector<int64_t>& times) {
+        // Analyse processing times, e.g., calculate average, percentiles, etc.
+        int64_t total_time = 0;
+        for(int64_t t : times) total_time += t;
+        double average_time = static_cast<double>(total_time) / times.size();
+        std::cout << "Average processing time: " << average_time << " ns\n";
+
+        // Percentiles
+        std::sort(times.begin(), times.end());
+        std::cout << "10th percentile: " << times[times.size() / 10] << " ns\n";
+        std::cout << "50th percentile: " << times[times.size() / 2] << " ns\n";
+        std::cout << "90th percentile: " << times[times.size() * 9 / 10] << " ns\n";
+        std::cout << "99th percentile: " << times[times.size() * 99 / 100] << " ns\n";
+    }
+
+    void process_buy(Order order) {
+
+        OrderBook &book = bookmanager->get((order.symbol_id) & SYMBOL_MASK);
+        if(book.bestsellprice() > order.price) [[likely]] {
+            book.addBuyOrder(order);
+            return;
+        }
+        
+        uint64_t best_price = book.bestsellprice();
+        while(order.quantity > 0 && best_price <= order.price) {
+            uint32_t price_index = book.priceToIndex(best_price);
+            
+            if(book.getpricelevels(price_index).gethead()->order.quantity >= order.quantity) {
+                
+                publish_trade({
+                    .trade_id = next_trade_id++,
+                    .timestamp_ns = order.timestamp,
+                    .price = best_price,
+                    .buy_order_id = order.order_id,
+                    .sell_order_id = book.getpricelevels(price_index).gethead()->order.order_id,
+                    .symbol_id = order.symbol_id,
+                    .quantity = order.quantity
+                });
+
+                uint32_t new_quantity = book.getpricelevels(price_index).gethead()->order.quantity - order.quantity;
+                book.modifyQuantity(best_price, new_quantity);
+                return;
+                
+            } else {
+                uint32_t traded_quantity = book.getpricelevels(price_index).gethead()->order.quantity;
+                publish_trade({
+                    .trade_id = next_trade_id++,
+                    .timestamp_ns = order.timestamp,
+                    .price = best_price,
+                    .buy_order_id = order.order_id,
+                    .sell_order_id = book.getpricelevels(price_index).gethead()->order.order_id,
+                    .symbol_id = order.symbol_id,
+                    .quantity = traded_quantity
+                });
+                
+                order.quantity -= traded_quantity;
+                book.removeSellOrder(best_price);
+                best_price = book.bestsellprice();
+            }
+        }
+        if(order.quantity > 0) {
+            book.addBuyOrder(order);
         }
     }
 
-    void publish_trade(int group_no, uint64_t buy_order_id, uint64_t sell_order_id, uint32_t symbol_id, uint64_t price, int32_t quantity) {
-        Trade t;
-        t.trade_id = next_trade_id.fetch_add(1, std::memory_order_relaxed);
-        t.buy_order_id = buy_order_id;
-        t.sell_order_id = sell_order_id;
-        t.symbol_id = symbol_id;
-        t.price = price;
-        t.quantity = quantity;
-        t.timestamp_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-        trade_buffers[group_no]->add_trade(t);
-    }
+    void process_sell(Order order) {
+        OrderBook &book = bookmanager->get((order.symbol_id) & SYMBOL_MASK);
+        if(book.bestbuyprice() < order.price) [[likely]] {
+            book.addSellOrder(order);
+            return;
+        }
 
-    void process_order(Order order, int group_no) {
-        if(order.type == OrderType::BUY) {
-            OrderBook *book = bookmanager.get((order.symbol_id)%1000);
-            if(book->bestsellprice() > order.price) {
-                book->addOrder(order);
+        uint64_t best_price = book.bestbuyprice();
+        while(order.quantity > 0 && best_price >= order.price) {
+            uint64_t price_index = book.priceToIndex(best_price);
+
+            if(book.getpricelevels(price_index).gethead()->order.quantity >= order.quantity) {
+            
+                publish_trade({
+                    .trade_id = next_trade_id++,
+                    .timestamp_ns = order.timestamp,
+                    .price = best_price,
+                    .buy_order_id = book.getpricelevels(price_index).gethead()->order.order_id,
+                    .sell_order_id = order.order_id,
+                    .symbol_id = order.symbol_id,
+                    .quantity = order.quantity
+                });
+            
+                uint32_t new_quantity = book.getpricelevels(price_index).gethead()->order.quantity - order.quantity;
+                book.modifyQuantity(best_price, new_quantity);
                 return;
-            }
-            uint64_t current_price = book->bestsellprice();
-            while(order.quantity > 0 && current_price <= order.price) {
-                uint64_t price_index = book->priceToIndex(current_price);
-                if(book->getorderside(price_index) == '0') {
-                    current_price++;
-                    continue;
-                }
-                OrderNode* best_sell = book->getpricelevels(price_index)->gethead();
-                if(best_sell->order.quantity > order.quantity) {
-                    uint64_t fill_qty = order.quantity;
-                    publish_trade(group_no, order.order_id, best_sell->order.order_id, order.symbol_id, current_price, fill_qty);
-                    uint64_t new_quantity = best_sell->order.quantity - order.quantity;
-                    book->modifyQuantity(current_price, new_quantity);
-                    break;
-                } else {
-                    uint64_t fill_qty = best_sell->order.quantity;
-                    publish_trade(group_no, order.order_id, best_sell->order.order_id, order.symbol_id, current_price, fill_qty);
-                    order.quantity -= fill_qty;
-                    book->removeOrder(current_price);
-                }
-            }
-            if(order.quantity > 0) {
-                book->addOrder(order);
-            }
-        } else {
-            OrderBook *book = bookmanager.get((order.symbol_id)%1000);
-            if(book->bestbuyprice() < order.price) {
-                book->addOrder(order);
-                return;
-            }
-            uint64_t current_price = book->bestbuyprice();
-            while(order.quantity > 0 && current_price >= order.price) {
-                uint64_t price_index = book->priceToIndex(current_price);
-                if(book->getorderside(price_index) == '0') {
-                    current_price--;
-                    continue;
-                }
-                OrderNode* best_buy = book->getpricelevels(price_index)->gethead();
-                if(book->getpricelevels(price_index)->gethead()->order.quantity > order.quantity) {
-                    uint64_t fill_qty = order.quantity;
-                    publish_trade(group_no, best_buy->order.order_id, order.order_id, order.symbol_id, current_price, fill_qty);
-                    uint64_t new_quantity = best_buy->order.quantity - order.quantity;
-                    order.quantity = 0;
-                    break;
-                } else {
-                    uint64_t fill_qty = best_buy->order.quantity;
-                    publish_trade(group_no, best_buy->order.order_id, order.order_id, order.symbol_id, current_price, fill_qty);
-                    order.quantity -= fill_qty;
-                    book->removeOrder(current_price);
-                }
-            }
-            if(order.quantity > 0) {
-                book->addOrder(order);
+
+            } else {
+                uint32_t traded_quantity = book.getpricelevels(price_index).gethead()->order.quantity;
+                publish_trade({
+                    .trade_id = next_trade_id++,
+                    .timestamp_ns = order.timestamp,
+                    .price = best_price,
+                    .buy_order_id = book.getpricelevels(price_index).gethead()->order.order_id,
+                    .sell_order_id = order.order_id,
+                    .symbol_id = order.symbol_id,
+                    .quantity = traded_quantity
+                });
+                
+                order.quantity -= traded_quantity;
+                book.removeBuyOrder(best_price);
+                best_price = book.bestbuyprice();
             }
         }
+        if(order.quantity > 0) {
+            book.addSellOrder(order);
+        }
+    }
+
+    void process_order(const Order& order) {
+        if(order.type == OrderType::BUY) process_buy(order);
+        else process_sell(order);
+    }
+
+    void publish_trade(Trade &&trade) {
+            trade_buffer.add_trade(trade);
+        }
+
+};
+
+class MatchingEngineDispatcher {
+private:
+    const int NUM_GROUPS = 1;
+    std::vector<std::unique_ptr<GroupProcessor>> groups;
+    std::atomic<bool> terminate_flag{false};
+    std::atomic<bool> is_running_flag{false};
+
+public:
+    MatchingEngineDispatcher(uint64_t capacity) {
+        groups.reserve(NUM_GROUPS);
+        for(int i=0; i<NUM_GROUPS; i++) {
+            groups.emplace_back(std::make_unique<GroupProcessor>(i, capacity));
+            
+        }
+    }
+
+    void start_dispatcher() {
+        // This would receive orders from EMS via TCP socket
+    }
+
+    void terminate() {
+        terminate_flag.store(true, std::memory_order_release);
+        for(auto &group : groups) {
+            group->terminate();
+        }
+    }
+
+    bool all_groups_running() {
+        bool is_all_groups_running = true;
+        for(auto &group : groups) {
+            is_all_groups_running = is_all_groups_running && group->is_running();
+        }
+        return is_all_groups_running && is_running_flag.load(std::memory_order_acquire);
+    }
+
+    // Used for placing orders
+    void dispatch_order(const Order& order) {
+
+        int group = (order.symbol_id >> SYMBOL_BITS);
+        while(!groups[group]->enqueue_order(order));
+        
     }
 
     void start() { // Dispatcher thread
@@ -173,12 +293,33 @@ public:
 
         std::vector<std::thread> group_threads;
         for (int i = 0; i < NUM_GROUPS; ++i) {
-            group_threads.emplace_back(&MatchingEngineDispatcher::start_group_thread, this, i);
+            group_threads.emplace_back(&GroupProcessor::start_group_thread, groups[i].get(), i);
         }
+
+        std::cout << "Dispatcher and group threads started" << std::endl;
+        is_running_flag.store(true, std::memory_order_release);
         
         dispatcher_thread.join();
         for (auto& t : group_threads) t.join();
+
+        std::cout << "Dispatcher and group threads finished" << std::endl;
+
     }
+
+    // One time setup to load order books into the book manager of each group processor.
+    // This can be extended to support dynamic addition of order books as well.
+    void initialize_engine(uint64_t* lower_limits,
+                       uint64_t* upper_limits)
+    {
+        // for(auto &group : groups) {
+        //     auto book_manager = group->setup_book_manager();
+        //     for(uint32_t symbol_id = 0; symbol_id < NUM_SYMBOLS; symbol_id++) {
+        //         book_manager->addBook(symbol_id, POOL_SIZE, lower_limits[symbol_id], upper_limits[symbol_id]);
+        //     }
+        // }
+    }
+
+    ~MatchingEngineDispatcher() = default;
 };
 }
 
