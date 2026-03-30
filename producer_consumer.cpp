@@ -15,7 +15,7 @@ struct alignas(64) PaddedAtomic {
     std::atomic<uint64_t> value;
 };
 
-PaddedAtomic processed_orders;
+// PaddedAtomic processed_orders;
 
 template<typename T>
 class alignas(64) RingBuffer {
@@ -83,8 +83,8 @@ public:
     void start_group_thread(int group_no) {
         // Process orders from group queue 
         Order cur_order;
-        std::vector<int64_t> processing_times;
-        processing_times.reserve(9000000);
+        // std::vector<int64_t> processing_times;
+        // processing_times.reserve(9000000);
         
         is_running_flag.store(true, std::memory_order_release);
         
@@ -92,17 +92,17 @@ public:
             if(group_queue->pop(cur_order)) {
                 // std::cout << "Processing order for group " << group_no << ": " << cur_order.order_id << std::endl;
 
-                auto start = std::chrono::high_resolution_clock::now();
+                // auto start = std::chrono::high_resolution_clock::now();
                 process_order(cur_order);
-                auto end = std::chrono::high_resolution_clock::now();
+                // auto end = std::chrono::high_resolution_clock::now();
                 // std::cout << "Finished processing order for group " << group_no << ": " << cur_order.order_id << std::endl << std::endl;
-                processing_times.push_back(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-                processed_orders.value.fetch_add(1, std::memory_order_relaxed);
+                // processing_times.push_back(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+                // processed_orders.value.fetch_add(1, std::memory_order_relaxed);
 
             }
         }
     
-        std::cerr << "Analysing processing times for group " << group_no << std::endl;
+        // std::cerr << "Analysing processing times for group " << group_no << std::endl;
         // process_processing_times(processing_times);
     
     }
