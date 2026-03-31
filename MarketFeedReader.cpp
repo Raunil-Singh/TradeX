@@ -1,36 +1,48 @@
 #include "MarketFeedReader.h"
 #include <sys/socket.h>
-
+/*TODO:
+1) Find a way to get ethernet IP address.
+2) Come up with a way to deal with deal with lag out
+3) Backoff class to deal with spinning on any new trade
+*/
 MarketFeedReader::MarketFeedReader() : trb(false)
 {
-    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
     struct in_addr local_ip;
-    inet_pton(AF_INET, "", &local_ip); //using ethernet or wifi?, sets the ip address according
-    
+    if (inet_pton(AF_INET, "10.0.0.5", &local_ip) != 1)
+    {
+        perror("inet_pton local ip");
+        exit(EXIT_FAILURE);
+    } // using ethernet or wifi?, sets the ip address according
+
     int bufsize = 1 << 20;
     setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize)); // increases TX (send) buffer size
-    addr.sin_family = AF_INET; // operating on IPV4
-    addr.sin_port = htons(5000); //listening to port 5000, converts to big endian network order bytes?
-    inet_pton(AF_INET, "239.1.1.1", &addr.sin_addr); // writes the binary address for the multicast group
+    addr.sin_family = AF_INET;                                            // operating on IPV4
+    addr.sin_port = htons(5000);                                          // listening to port 5000, converts to big endian network order bytes?
+    if (inet_pton(AF_INET, "239.1.1.1", &addr.sin_addr) != 1)
+    {
+        perror("inet_pton multicast");
+        exit(EXIT_FAILURE);
+    } // writes the binary address for the multicast group
 
-    setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, &local_ip, sizeof(local_ip)); //setting interface based on ip
+    setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, &local_ip, sizeof(local_ip)); // setting interface based on ip
 }
 
 void MarketFeedReader::init_batch(batch_t *b, int cap)
 {
     b->capacity = cap;
     b->msgs = (struct mmsghdr *)calloc(cap, sizeof(struct mmsghdr)); // creates pointer to structs of mmsghdr
-    b->iov = (struct iovec *)calloc(cap, sizeof(struct iovec)); //creates pointers to the iovec structs
-    b->buffer = (char *)aligned_alloc(64, cap * MAX_MSG_SIZE); //the actual memory buffer
+    b->iov = (struct iovec *)calloc(cap, sizeof(struct iovec));      // creates pointers to the iovec structs
+    b->buffer = (char *)aligned_alloc(64, cap * MAX_MSG_SIZE);       // the actual memory buffer
 
     for (int i = 0; i < cap; i++)
     {
-        b->iov[i].iov_base = b->buffer + i * MAX_MSG_SIZE; //setting the base ptr for the message in the buffer
-        b->iov[i].iov_len = 0; //no bytes of messages currently present
-        b->msgs[i].msg_hdr.msg_iov = &b->iov[i]; //each mmsghdr gets its a pointer to the iov struct
-        b->msgs[i].msg_hdr.msg_iovlen = 1; //number of messages in each iovec struct, we have a single message, MarketDataMessage
-        b->msgs[i].msg_hdr.msg_name = &addr; //address of the multicast group
+        b->iov[i].iov_base = b->buffer + i * MAX_MSG_SIZE; // setting the base ptr for the message in the buffer
+        b->iov[i].iov_len = 0;                             // no bytes of messages currently present
+        b->msgs[i].msg_hdr.msg_iov = &b->iov[i];           // each mmsghdr gets its a pointer to the iov struct
+        b->msgs[i].msg_hdr.msg_iovlen = 1;                 // number of messages in each iovec struct, we have a single message, MarketDataMessage
+        b->msgs[i].msg_hdr.msg_name = &addr;               // address of the multicast group
         b->msgs[i].msg_hdr.msg_namelen = sizeof(addr);
     }
 }
@@ -88,10 +100,25 @@ void MarketFeedReader::sendThread()
             int sent = sendmmsg(sockfd, cursor, to_send, 0);
             if (sent < 0)
             {
-                if (errno == EINTR)
-                    continue; // interrupted, retry
-                // log/handle hard error here
-                break;
+                switch (errno)
+                {
+                case EINTR:
+                    continue;
+                case EAGAIN:
+                    // back off and retry
+                    break;
+                case EBADF:
+                case ENOTSOCK:
+                case ENETDOWN:
+                case ENETUNREACH:
+                case EACCES:
+                    perror("sendmmsg fatal"); // prints "sendmmsg fatal: <human readable error>" to stderr
+                    // shutdown logic
+                    break;
+                default:
+                    perror("sendmmsg");
+                    break;
+                }
             }
             cursor += sent;
             to_send -= sent;
@@ -99,7 +126,7 @@ void MarketFeedReader::sendThread()
     }
 }
 
-MarketDataMessage MarketFeedReader::formatMarketData (matching_engine::Trade&& trade)
+MarketDataMessage MarketFeedReader::formatMarketData(matching_engine::Trade &&trade)
 {
     MarketDataMessage out;
     out.price = trade.price;
