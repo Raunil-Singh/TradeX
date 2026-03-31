@@ -14,7 +14,7 @@ typedef struct {
     uint64_t buy_order_id;
     uint64_t sell_order_id;
     uint32_t symbol_id;
-    int32_t quantity;
+    uint32_t quantity;
 } Trade;
 }
 #endif
