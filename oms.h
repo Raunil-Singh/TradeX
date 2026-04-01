@@ -57,7 +57,7 @@ private:
 
     static constexpr uint64_t TICK_MAX_PRICE = UINT64_MAX;
     static constexpr uint64_t TICK_MIN_PRICE = 1;
-    static constexpr int MAX_SYMBOLS = 1000;
+    static constexpr int MAX_SYMBOLS = 1 << SYMBOL_BITS;
     static constexpr uint64_t ICEBERG_BIT    = (1ULL << 63);
     int symbolLookupTable[880000]; 
 
@@ -88,7 +88,7 @@ private:
 
     matching_engine::MatchingEngineDispatcher* engine;
     std::vector<TradeRingBuffer::trade_ring_buffer*> trade_consumers;
-    const int NUM_GROUPS = 2;
+    const int NUM_GROUPS = matching_engine::group_count;
 
     std::thread oms_thread;
 

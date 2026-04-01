@@ -109,7 +109,7 @@ void OrderManagementSystem::listenForClientOrder() {
 
         //checks for changes in last traded price and triggers SL
         if(shared_memory_ptr){
-            for (uint32_t i=0; i<1000; i++) {
+            for (uint32_t i=0; i<MAX_SYMBOLS; i++) {
                 uint64_t current_ltp = shared_memory_ptr[i].last_price;
                 if (current_ltp != last_seen_price[i]) {
                     checkAndTriggerSL(i, current_ltp);
@@ -142,7 +142,7 @@ void OrderManagementSystem::registerStopLoss(const ClientOrder& ord) {
     immediate_ord.quantity = ord.quantity;
     immediate_ord.execution_type = matching_engine::OrderExecutionType::MARKET;
 
-    auto& container = stop_loss_registry[(uint32_t)sym_id%1000];
+    auto& container = stop_loss_registry[sym_id & matching_engine::SYMBOL_MASK];
     if (container.sell_stops.capacity() == 0) container.init();
 
     if (ord.type == matching_engine::OrderType::BUY) {
