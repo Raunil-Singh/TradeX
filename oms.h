@@ -57,9 +57,9 @@ private:
 
     static constexpr uint64_t TICK_MAX_PRICE = UINT64_MAX;
     static constexpr uint64_t TICK_MIN_PRICE = 1;
-    static constexpr int MAX_SYMBOLS = 1 << SYMBOL_BITS;
     static constexpr uint64_t ICEBERG_BIT    = (1ULL << 63);
     int symbolLookupTable[880000]; 
+    std::atomic<uint64_t> next_oms_order_id;
 
 
     StopLossContainer stop_loss_registry[MAX_SYMBOLS];
@@ -76,7 +76,7 @@ private:
     uint64_t last_seen_price[MAX_SYMBOLS] = {0};
 
     struct MarketData { uint64_t last_price; };
-    MarketData* shared_memory_ptr = nullptr;
+    shared_data::MarketState* shared_memory_ptr = nullptr;
 
     std::unordered_map<uint64_t, ClientOrder> active_icebergs; 
     std::unordered_map<uint64_t, uint64_t> child_to_parent; // Child ID -> Parent ID

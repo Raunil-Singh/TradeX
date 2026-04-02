@@ -9,11 +9,13 @@ namespace oms {
 OrderManagementSystem::OrderManagementSystem(matching_engine::MatchingEngineDispatcher* eng, size_t capacity) : incoming_orders(capacity), engine(eng) {
     int shm_fd = shm_open("/oms_market_data", O_RDONLY, 0666);
     if (shm_fd != -1) {
-        shared_memory_ptr = (MarketData*)mmap(NULL, sizeof(uint64_t) * MAX_SYMBOLS, PROT_READ, MAP_SHARED, shm_fd, 0);
+        shared_memory_ptr = (shared_data::MarketState*)mmap(NULL, sizeof(shared_data::MarketState), PROT_READ, MAP_SHARED, shm_fd, 0);
     }
     for(int i = 0; i < NUM_GROUPS; i++) {
         trade_consumers.push_back(new TradeRingBuffer::trade_ring_buffer(false, i));
     }
+    uint64_t boot_timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+    next_oms_order_id.store(boot_timestamp, std::memory_order_relaxed);
 }
 
 OrderManagementSystem::~OrderManagementSystem() {
@@ -65,6 +67,8 @@ void OrderManagementSystem::listenForClientOrder() {
     while(!shutdown.load(std::memory_order_relaxed)) {
         InternalOrder out;
         while(incoming_orders.pop(new_order)) {
+            uint64_t assigned_id = next_oms_order_id.fetch_add(1, std::memory_order_relaxed);
+            new_order.client_order_id = assigned_id;
             //ICEBERG
             if (new_order.execution_type == ClientOrderType::ICEBERG) {
                 active_icebergs[new_order.client_order_id] = new_order;
@@ -110,7 +114,7 @@ void OrderManagementSystem::listenForClientOrder() {
         //checks for changes in last traded price and triggers SL
         if(shared_memory_ptr){
             for (uint32_t i=0; i<MAX_SYMBOLS; i++) {
-                uint64_t current_ltp = shared_memory_ptr[i].last_price;
+                uint64_t current_ltp = shared_memory_ptr->last_price[i].load(std::memory_order_relaxed);
                 if (current_ltp != last_seen_price[i]) {
                     checkAndTriggerSL(i, current_ltp);
                     last_seen_price[i] = current_ltp;

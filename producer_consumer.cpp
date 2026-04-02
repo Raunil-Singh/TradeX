@@ -9,6 +9,12 @@
 #include "order_book.h"
 #include "trade_ring_buffer.h"
 
+namespace shared_data {
+    struct MarketState {
+        std::atomic<uint64_t> last_price[MAX_SYMBOLS];
+    };
+}
+
 namespace matching_engine {
 
     constexpr int group_count = 1;
@@ -64,13 +70,15 @@ class GroupProcessor {
     int group_no;
     std::atomic<bool> terminate_flag{false};
     std::atomic<bool> is_running_flag{false};
+    shared_data::MarketState* shared_ltp_ptr;
 
 public:
-    GroupProcessor(int group_no, size_t queue_capacity) :
+    GroupProcessor(int group_no, size_t queue_capacity, shared_data::MarketState* shared_ptr) :
         group_queue(std::make_unique<RingBuffer<Order>>(queue_capacity)),
         trade_buffer{true, group_no},
         next_trade_id(1),
-        group_no(group_no) {
+        group_no(group_no),
+        shared_ltp_ptr(shared_ptr) {
     }
 
     ~GroupProcessor() {
@@ -161,6 +169,7 @@ public:
                     .symbol_id = order.symbol_id,
                     .quantity = order.quantity
                 });
+                shared_ltp_ptr->last_price[order.symbol_id & SYMBOL_MASK] = order.price;
 
                 uint32_t new_quantity = book.getpricelevels(price_index).gethead()->order.quantity - order.quantity;
                 book.modifyQuantity(best_price, new_quantity);
@@ -177,6 +186,7 @@ public:
                     .symbol_id = order.symbol_id,
                     .quantity = traded_quantity
                 });
+                shared_ltp_ptr->last_price[order.symbol_id & SYMBOL_MASK] = order.price;
                 
                 order.quantity -= traded_quantity;
                 book.removeSellOrder(best_price);
@@ -210,6 +220,7 @@ public:
                     .symbol_id = order.symbol_id,
                     .quantity = order.quantity
                 });
+                shared_ltp_ptr->last_price[order.symbol_id & SYMBOL_MASK] = order.price;
             
                 uint32_t new_quantity = book.getpricelevels(price_index).gethead()->order.quantity - order.quantity;
                 book.modifyQuantity(best_price, new_quantity);
@@ -226,6 +237,7 @@ public:
                     .symbol_id = order.symbol_id,
                     .quantity = traded_quantity
                 });
+                shared_ltp_ptr->last_price[order.symbol_id & SYMBOL_MASK] = order.price;
                 
                 order.quantity -= traded_quantity;
                 book.removeBuyOrder(best_price);
@@ -244,7 +256,7 @@ public:
 
     void publish_trade(Trade &&trade) {
             trade_buffer.add_trade(trade);
-        }
+    }
 
 };
 
@@ -253,12 +265,20 @@ private:
     std::vector<std::unique_ptr<GroupProcessor>> groups;
     std::atomic<bool> terminate_flag{false};
     std::atomic<bool> is_running_flag{false};
+    shared_data::MarketState* shared_ltp_ptr;
+    int shm_fd;
 
 public:
     MatchingEngineDispatcher(uint64_t capacity) {
+        shm_fd = shm_open("/oms_market_data", O_CREAT | O_RDWR, 0666);
+        ftruncate(shm_fd, sizeof(shared_data::MarketState));
+        shared_ltp_ptr = (shared_data::MarketState*)mmap(NULL, sizeof(shared_data::MarketState), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+            
+        for(int i = 0; i<MAX_SYMBOLS; i++) shared_ltp_ptr->last_price[i] = 0;
+
         groups.reserve(group_count);
         for(int i=0; i<group_count; i++) {
-            groups.emplace_back(std::make_unique<GroupProcessor>(i, capacity));
+            groups.emplace_back(std::make_unique<GroupProcessor>(i, capacity, shared_ltp_ptr));
             
         }
     }
@@ -321,7 +341,11 @@ public:
         // }
     }
 
-    ~MatchingEngineDispatcher() = default;
+    ~MatchingEngineDispatcher() {
+        munmap(shared_ltp_ptr, sizeof(shared_data::MarketState));
+        close(shm_fd);
+        shm_unlink("/oms_market_data");
+    }
 };
 }
 
