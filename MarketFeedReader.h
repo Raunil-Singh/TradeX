@@ -1,7 +1,7 @@
 #ifndef MARKETREADER
 #define MARKETREADER
 
-#define _GNU_SOURCE
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -12,7 +12,6 @@
 #include <errno.h>
 
 #include "trade_ring_buffer.h"
-#include "retransmitter.h"
 #include "message.h"
 #include "spsc_queue.h"
 
