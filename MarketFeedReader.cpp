@@ -1,11 +1,14 @@
 #include "MarketFeedReader.h"
 #include <sys/socket.h>
 #include <chrono>
+
 /*TODO:
 1) Find a way to get ethernet IP address.
 2) Come up with a way to deal with deal with lag out
 3) Backoff class to deal with spinning on any new trade
 */
+
+std::atomic_bool done{false};
 std::string get_interface_ip(const std::string& iface_name)
 {
     struct ifaddrs* ifaddr;
@@ -28,8 +31,8 @@ MarketFeedReader::MarketFeedReader() : trb(false)
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
     struct in_addr local_ip;
-    std::string ip = get_interface_ip("eno1");
-    if (inet_pton(AF_INET, ip.data(), &local_ip) != 1)
+    // std::string ip = get_interface_ip("eno1");
+    if (inet_pton(AF_INET, "10.50.59.247", &local_ip) != 1)
     {
         perror("inet_pton local ip");
         exit(EXIT_FAILURE);
@@ -68,7 +71,8 @@ void MarketFeedReader::init_batch(batch_t *b, int cap)
 
 void MarketFeedReader::readThread()
 {
-    while (true)
+    int trade_counter{};
+    while (trade_counter < 1'000'960)
     {
         if (trb.lagged_out())
         {
@@ -79,15 +83,19 @@ void MarketFeedReader::readThread()
             // spinning
         }
         queue.push(formatMarketData(trb.get_trade()));
+        trade_counter++;
     }
+    done.store(true, std::memory_order_release);
+    std:: cout << "reader done \n";
 }
 
 void MarketFeedReader::sendThread()
 {
     batch_t *batch = (batch_t *)malloc(sizeof(batch_t));
     init_batch(batch, 64);
-
-    while (true)
+    int msgs_sent{};
+    int msgs_packed{};
+    while (!done.load(std::memory_order_acquire) || !queue.empty())
     {
         int msg_count = 0;
 
@@ -101,6 +109,7 @@ void MarketFeedReader::sendThread()
                 MarketDataMessage msg;
                 while (!queue.pop(msg))
                 {
+                    // std::cout << "stuck here \n";
                 } // spin until we get one, maybe back off a acouple of times and exit and send incomplete packet
                 memcpy(ptr + msgs_packed * sizeof(MarketDataMessage), &msg, sizeof(MarketDataMessage));
                 msgs_packed++;
@@ -109,7 +118,8 @@ void MarketFeedReader::sendThread()
             batch->iov[msg_count].iov_len = msgs_packed * sizeof(MarketDataMessage);
             msg_count++;
         }
-
+        msgs_packed++;
+        // std::cout << "all messages packed : " << msgs_packed<<"\n";
         // partial send retry loop
         int to_send = msg_count;
         struct mmsghdr *cursor = batch->msgs;
@@ -119,30 +129,36 @@ void MarketFeedReader::sendThread()
             int sent = sendmmsg(sockfd, cursor, to_send, 0);
             if (sent < 0)
             {
-                switch (errno)
-                {
-                case EINTR:
-                    continue;
-                case EAGAIN:
-                    // back off and retry
-                    break;
-                case EBADF:
-                case ENOTSOCK:
-                case ENETDOWN:
-                case ENETUNREACH:
-                case EACCES:
-                    perror("sendmmsg fatal"); // prints "sendmmsg fatal: <human readable error>" to stderr
-                    // shutdown logic
-                    break;
-                default:
-                    perror("sendmmsg");
-                    break;
-                }
+                // switch (errno)
+                // {
+                // case EINTR:
+                //     continue;
+                // case EAGAIN:
+                //     // back off and retry
+                //     break;
+                // case EBADF:
+                // case ENOTSOCK:
+                // case ENETDOWN:
+                // case ENETUNREACH:
+                // case EACCES:
+                //     perror("sendmmsg fatal"); // prints "sendmmsg fatal: <human readable error>" to stderr
+                //     // shutdown logic
+                //     break;
+                // default:
+                //     perror("sendmmsg");
+                //     break;
+                // } 
+                perror("send");
+                goto done_sending;  
             }
             cursor += sent;
             to_send -= sent;
         }
+        msgs_sent++;
+        // std::cout << "msgs sent : " << msgs_sent << "\n";
     }
+    done_sending:
+        std::cout << "exited sender \n";
 }
 
 MarketDataMessage MarketFeedReader::formatMarketData(matching_engine::Trade &&trade)
@@ -169,12 +185,13 @@ matching_engine::Trade make_fake_trade(uint64_t i)
 void pusher()
 {
     TradeRingBuffer::trade_ring_buffer trb(true);
-    
-    for (int i = 0; i < 1'000'000; i++)
+    matching_engine::Trade trade;
+    for (int i = 0; i < 1'000'960; i++)
     {
-        auto trade = make_fake_trade(i);
+        trade = make_fake_trade(i);
         trb.add_trade(trade);
     }
+    std::cout<< "pusher done \n";
 }
 #include <thread>
 int main(){
@@ -188,6 +205,7 @@ int main(){
     reader.join();
 
     auto tp2 = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::seconds>(tp2 - tp);
-    std::cout << "Throughput: " << (1'000'000) / static_cast<double>(duration.count()) << "\n";
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(tp2 - tp);
+    std::cout << "Throughput: " << (1'000'960) / static_cast<double>(duration.count()) << "\n";
+    std::cout << "Duration: " << duration.count() << "ms\n";
 }

@@ -12,7 +12,7 @@
 #include <errno.h>
 #include <ifaddrs.h>
 #include <string>
-
+#include <atomic>
 #include "trade_ring_buffer.h"
 #include "message.h"
 #include "spsc_queue.h"
@@ -35,7 +35,7 @@ class MarketFeedReader
         spsc_queue queue;
         int sockfd;
         struct sockaddr_in addr;
-
+        // std::atomic_bool done{false};
     public:
         MarketFeedReader();
         MarketDataMessage formatMarketData(matching_engine::Trade &&trade); // fix: return by value, not &&
