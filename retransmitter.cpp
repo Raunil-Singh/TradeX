@@ -5,6 +5,24 @@
 2) Test
 3) Find a better way to handle all setup errors*/
 
+
+std::string get_interface_ip(const std::string& iface_name)
+{
+    struct ifaddrs* ifaddr;
+    getifaddrs(&ifaddr);
+    for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
+    {
+        if (ifa->ifa_addr->sa_family == AF_INET && iface_name == ifa->ifa_name)
+        {
+            char buf[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &((struct sockaddr_in*)ifa->ifa_addr)->sin_addr, buf, sizeof(buf));
+            freeifaddrs(ifaddr);
+            return std::string(buf);
+        }
+    }
+    freeifaddrs(ifaddr);
+    throw std::runtime_error("interface not found: " + iface_name);
+}
 Retransmitter::Retransmitter()
 {
     init_batch(&batch, 64);
@@ -39,6 +57,7 @@ Retransmitter::Retransmitter()
 
     struct ip_mreq mreq;
     mreq.imr_multiaddr.s_addr = inet_addr("239.1.1.1"); // subscribing to the multicast group
+    std::string ip = get_interface_ip("en1"); //idk??
     mreq.imr_interface.s_addr = inet_addr("10.0.0.5");  // over ethernet
     if (inet_pton(AF_INET, "239.1.1.1", &mreq.imr_multiaddr) != 1)
     {

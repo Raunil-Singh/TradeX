@@ -10,6 +10,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <ifaddrs.h>
+#include <string>
 
 #include "message.h"
 #include "spsc_queue.h"

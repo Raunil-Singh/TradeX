@@ -10,6 +10,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <ifaddrs.h>
+#include <string>
 
 #include "trade_ring_buffer.h"
 #include "message.h"

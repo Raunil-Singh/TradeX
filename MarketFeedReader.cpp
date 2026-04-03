@@ -5,12 +5,30 @@
 2) Come up with a way to deal with deal with lag out
 3) Backoff class to deal with spinning on any new trade
 */
+std::string get_interface_ip(const std::string& iface_name)
+{
+    struct ifaddrs* ifaddr;
+    getifaddrs(&ifaddr);
+    for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
+    {
+        if (ifa->ifa_addr->sa_family == AF_INET && iface_name == ifa->ifa_name)
+        {
+            char buf[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &((struct sockaddr_in*)ifa->ifa_addr)->sin_addr, buf, sizeof(buf));
+            freeifaddrs(ifaddr);
+            return std::string(buf);
+        }
+    }
+    freeifaddrs(ifaddr);
+    throw std::runtime_error("interface not found: " + iface_name);
+}
 MarketFeedReader::MarketFeedReader() : trb(false)
 {
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
     struct in_addr local_ip;
-    if (inet_pton(AF_INET, "10.0.0.5", &local_ip) != 1)
+    std::string ip = get_interface_ip("en0");
+    if (inet_pton(AF_INET, ip.data(), &local_ip) != 1)
     {
         perror("inet_pton local ip");
         exit(EXIT_FAILURE);
@@ -137,3 +155,5 @@ MarketDataMessage MarketFeedReader::formatMarketData(matching_engine::Trade &&tr
     out.seq_num = seq_num++;
     return out;
 }
+
+
