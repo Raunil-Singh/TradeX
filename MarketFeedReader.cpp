@@ -42,7 +42,7 @@ MarketFeedReader::MarketFeedReader() : trb(false)
     setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize)); // increases TX (send) buffer size
     addr.sin_family = AF_INET;                                            // operating on IPV4
     addr.sin_port = htons(5000);                                          // listening to port 5000, converts to big endian network order bytes?
-    if (inet_pton(AF_INET, "239.1.1.1", &addr.sin_addr) != 1)
+    if (inet_pton(AF_INET, "239.1.1.1", &addr.sin_addr) != 1) // was 239.1.1.1
     {
         perror("inet_pton multicast");
         exit(EXIT_FAILURE);
@@ -196,11 +196,11 @@ void pusher()
 #include <thread>
 int main(){
     MarketFeedReader mfr;
-    auto tp = std::chrono::steady_clock::now();
     std::thread push(pusher);
+    push.join();
+    auto tp = std::chrono::steady_clock::now();
     std::thread sender([&]{ mfr.sendThread(); });
     std::thread reader([&]{ mfr.readThread(); });
-    push.join();
     sender.join();
     reader.join();
 
