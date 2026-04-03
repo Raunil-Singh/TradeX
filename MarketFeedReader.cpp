@@ -1,5 +1,6 @@
 #include "MarketFeedReader.h"
 #include <sys/socket.h>
+#include <chrono>
 /*TODO:
 1) Find a way to get ethernet IP address.
 2) Come up with a way to deal with deal with lag out
@@ -27,7 +28,7 @@ MarketFeedReader::MarketFeedReader() : trb(false)
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
     struct in_addr local_ip;
-    std::string ip = get_interface_ip("en0");
+    std::string ip = get_interface_ip("eno1");
     if (inet_pton(AF_INET, ip.data(), &local_ip) != 1)
     {
         perror("inet_pton local ip");
@@ -155,5 +156,38 @@ MarketDataMessage MarketFeedReader::formatMarketData(matching_engine::Trade &&tr
     out.seq_num = seq_num++;
     return out;
 }
+matching_engine::Trade make_fake_trade(uint64_t i)
+{
+    matching_engine::Trade t;
+    t.price        = 100.0 + (i % 100);
+    t.quantity     = 10 + (i % 50);
+    t.symbol_id    = i % 8;
+    t.timestamp_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+    t.trade_id     = i;
+    return t;
+}
+void pusher()
+{
+    TradeRingBuffer::trade_ring_buffer trb(true);
+    
+    for (int i = 0; i < 1'000'000; i++)
+    {
+        auto trade = make_fake_trade(i);
+        trb.add_trade(trade);
+    }
+}
+#include <thread>
+int main(){
+    MarketFeedReader mfr;
+    auto tp = std::chrono::steady_clock::now();
+    std::thread push(pusher);
+    std::thread sender([&]{ mfr.sendThread(); });
+    std::thread reader([&]{ mfr.readThread(); });
+    push.join();
+    sender.join();
+    reader.join();
 
-
+    auto tp2 = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::seconds>(tp2 - tp);
+    std::cout << "Throughput: " << (1'000'000) / static_cast<double>(duration.count()) << "\n";
+}

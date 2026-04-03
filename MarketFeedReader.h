@@ -35,9 +35,9 @@ class MarketFeedReader
         spsc_queue queue;
         int sockfd;
         struct sockaddr_in addr;
-        MarketFeedReader();
 
     public:
+        MarketFeedReader();
         MarketDataMessage formatMarketData(matching_engine::Trade &&trade); // fix: return by value, not &&
         void readThread();
         void sendThread();
