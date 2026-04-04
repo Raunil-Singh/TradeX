@@ -5,7 +5,7 @@
 2) Test
 3) Find a better way to handle all setup errors*/
 
-
+std::atomic_bool done{false};
 std::string get_interface_ip(const std::string& iface_name)
 {
     struct ifaddrs* ifaddr;
@@ -23,7 +23,7 @@ std::string get_interface_ip(const std::string& iface_name)
     freeifaddrs(ifaddr);
     throw std::runtime_error("interface not found: " + iface_name);
 }
-Retransmitter::Retransmitter()
+Retransmitter::Retransmitter() : buffer(new MarketDataMessage[SIZE]), tcp_buffer(new char[1 << 8])
 {
     init_batch(&batch, 64);
     sockfd_udp = socket(AF_INET, SOCK_DGRAM, 0); // UDP over IPV4
@@ -57,15 +57,15 @@ Retransmitter::Retransmitter()
 
     struct ip_mreq mreq;
     mreq.imr_multiaddr.s_addr = inet_addr("239.1.1.1"); // subscribing to the multicast group
-    std::string ip = get_interface_ip("en1"); //idk??
-    mreq.imr_interface.s_addr = inet_addr("10.0.0.5");  // over ethernet
+    // std::string ip = get_interface_ip("en1"); //idk??
+    mreq.imr_interface.s_addr = inet_addr("10.50.59.247");  // over ethernet
     if (inet_pton(AF_INET, "239.1.1.1", &mreq.imr_multiaddr) != 1)
     {
         perror("inet_pton multicast group");
         exit(EXIT_FAILURE);
     }
 
-    if (inet_pton(AF_INET, "10.0.0.5", &mreq.imr_interface) != 1)
+    if (inet_pton(AF_INET, "10.50.59.247", &mreq.imr_interface) != 1)
     {
         perror("inet_pton interface");
         exit(EXIT_FAILURE);
@@ -98,7 +98,8 @@ Retransmitter::Retransmitter()
 
 void Retransmitter::storeThread()
 {
-    while (true) // global synchronization flag
+    int trades{};
+    while (trades < 1'000'960) // global synchronization flag
     {
         int ret = recvmmsg(sockfd_udp, batch.msgs, 64, MSG_DONTWAIT, NULL); // non-blocking batch receive
         if (ret < 0)
@@ -109,6 +110,7 @@ void Retransmitter::storeThread()
             perror("recvmmsg");
             continue;
         }
+        
         for (int i = 0; i < ret; i++)
         {
 
@@ -119,14 +121,17 @@ void Retransmitter::storeThread()
                 MarketDataMessage *msg = reinterpret_cast<MarketDataMessage *>(p_msg); // trying to get the MarketDataMessage, why am i doing + 64???
                 std::memcpy(buffer + (msg->seq_num & (SIZE - 1)), msg, sizeof(*msg));
                 p_msg += sizeof(MarketDataMessage);
+                trades++;
             }
         }
+        std::cout << trades << "\n";
     }
+    done.store(true, std::memory_order_release);
 }
 
 void Retransmitter::listenerThread()
 {
-    while (true)
+    while (!done.load(std::memory_order_acquire))
     {
         int new_socket = accept(sockfd_tcp, (struct sockaddr *)&addr_tcp, (socklen_t *)&addrlen_tcp);
         if (new_socket < 0)
@@ -204,4 +209,18 @@ void Retransmitter::init_batch(batch_t *b, int cap)
         b->msgs[i].msg_hdr.msg_name = nullptr;
         b->msgs[i].msg_hdr.msg_namelen = 0;
     }
+}
+#include <thread>
+#include <chrono>
+int main()
+{
+    Retransmitter rt;
+    auto tp = std::chrono::steady_clock::now();
+    std::thread store ([&]{ rt.storeThread(); });
+    std::thread listen ([&]{ rt.listenerThread(); });
+    store.join();
+    listen.join();
+    auto tp2 = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(tp2 - tp);
+    std::cout << duration.count() << "ms";
 }

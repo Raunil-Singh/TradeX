@@ -1,4 +1,4 @@
-#define _GNU_SOURCE
+
 #include <stdint.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -12,6 +12,8 @@
 #include <unistd.h>
 #include <ifaddrs.h>
 #include <string>
+#include <atomic>
+#include <iostream>
 
 #include "message.h"
 #include "spsc_queue.h"
@@ -31,13 +33,13 @@ static const uint64_t SIZE{1 << 20}; // configure slot sizes to service requests
 class Retransmitter{
     private:
         spsc_queue queue;
-        MarketDataMessage buffer[SIZE];
+        MarketDataMessage *buffer;
         int sockfd_udp;
         int sockfd_tcp;
         struct sockaddr_in addr_udp, addr_tcp;
         int addrlen_tcp;
         batch_t batch;
-        char tcp_buffer[1 << 8]; //should be size of sequence number
+        char *tcp_buffer; //should be size of sequence number
     public:
         Retransmitter();
         void storeThread(); // listenes on MarketFeed's UDP connection 
