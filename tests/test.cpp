@@ -11,7 +11,7 @@ int main() {
     
     uint64_t lower[MAX_SYMBOLS] = {0};
     uint64_t upper[MAX_SYMBOLS] = {0};
-    std::vector<SymbolInfo> symbol_data = loadSymbolCSV("symbols.csv");
+    std::vector<SymbolInfo> symbol_data = loadSymbolCSV("data/symbols.csv");
     for (const auto& s : symbol_data) {
         lower[s.symbol_id] = s.lower_limit;
         upper[s.symbol_id] = s.upper_limit;

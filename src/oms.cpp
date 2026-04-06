@@ -20,7 +20,7 @@ OrderManagementSystem::OrderManagementSystem(matching_engine::MatchingEngineDisp
     next_oms_order_id.store(boot_timestamp, std::memory_order_relaxed);
 
     //symbolLookupTable[34316] = 1;   //for testing AAPL orders
-    std::vector<SymbolInfo> symbol_data = loadSymbolCSV("symbols.csv");
+    std::vector<SymbolInfo> symbol_data = loadSymbolCSV("data/symbols.csv");
     for (const auto& s : symbol_data) {
         symbolLookupTable[find_hash(s.symbol)] = s.symbol_id;
     }
