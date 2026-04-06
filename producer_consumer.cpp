@@ -8,16 +8,11 @@
 #include "trade.h"
 #include "order_book.h"
 #include "trade_ring_buffer.h"
-
-namespace shared_data {
-    struct MarketState {
-        std::atomic<uint64_t> last_price[MAX_SYMBOLS];
-    };
-}
+#include "market_state.h"
 
 namespace matching_engine {
 
-    constexpr int group_count = 1;
+    constexpr int group_count = 2;
 
 
 struct alignas(64) PaddedAtomic {
@@ -51,7 +46,7 @@ public:
 
     bool pop(T &item) {
         uint32_t cur_head = head.load(std::memory_order_relaxed);
-        while(cur_head == tail.load(std::memory_order_acquire)) return false;
+        if(cur_head == tail.load(std::memory_order_acquire)) return false;
 
         item = buffer[cur_head];
         head.store((cur_head+1) & (capacity-1), std::memory_order_release);
@@ -105,7 +100,7 @@ public:
                 // std::cout << "Processing order for group " << group_no << ": " << cur_order.order_id << std::endl;
 
                 // auto start = std::chrono::high_resolution_clock::now();
-                //printf("Order %ld recieved by matching-engine.\n",cur_order.order_id);
+                //printf("Order %ld recieved group %d.\n",cur_order.order_id,group_no);
                 process_order(cur_order);
                 // auto end = std::chrono::high_resolution_clock::now();
                 // std::cout << "Finished processing order for group " << group_no << ": " << cur_order.order_id << std::endl << std::endl;
@@ -316,7 +311,8 @@ public:
     // Used for placing orders
     void dispatch_order(const Order& order) {
 
-        int group = (order.symbol_id >> SYMBOL_BITS);
+        int group = (order.symbol_id >> SYMBOL_BITS) % group_count;
+        if(group >= groups.size()) group = 0;
         //printf("Order %ld recieved\n",order.order_id);
         while(!groups[group]->enqueue_order(order));
         

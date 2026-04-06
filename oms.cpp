@@ -3,6 +3,8 @@
 #include <iostream>
 #include <thread>
 #include <algorithm>
+#include "market_state.h"
+#include "symbol_loader.h"
 
 namespace oms {
 
@@ -18,6 +20,10 @@ OrderManagementSystem::OrderManagementSystem(matching_engine::MatchingEngineDisp
     next_oms_order_id.store(boot_timestamp, std::memory_order_relaxed);
 
     //symbolLookupTable[34316] = 1;   //for testing AAPL orders
+    std::vector<SymbolInfo> symbol_data = loadSymbolCSV("symbols.csv");
+    for (const auto& s : symbol_data) {
+        symbolLookupTable[find_hash(s.symbol)] = s.symbol_id;
+    }
 }
 
 OrderManagementSystem::~OrderManagementSystem() {
@@ -32,7 +38,7 @@ uint64_t OrderManagementSystem::getCurrentTimestamp() {
            std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 }
 
-int OrderManagementSystem::find_id(const std::string& symbol) {
+int OrderManagementSystem::find_hash(const std::string& symbol){
     uint32_t hash = 0;
 
     for(int i = 0; i<4; ++i){
@@ -42,9 +48,11 @@ int OrderManagementSystem::find_id(const std::string& symbol) {
         }
         hash = (hash<<5) | char_val;
     }
-    
+    return hash;
+}
+int OrderManagementSystem::find_id(const std::string& symbol) {
+    uint32_t hash = find_hash(symbol);
     if (hash >= 880000) return -1; 
-
     return symbolLookupTable[hash];
 }
 

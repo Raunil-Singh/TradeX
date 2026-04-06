@@ -69,11 +69,11 @@ private:
     void checkAndTriggerSL(uint32_t sym_id, uint64_t current_ltp);
    
     int find_id(const std::string& symbol);
+    int find_hash(const std::string& symbol);
 
     uint64_t last_seen_price[MAX_SYMBOLS] = {0};
 
-    struct MarketData { uint64_t last_price; };
-    shared_data::MarketState* shared_memory_ptr = nullptr;
+    struct MarketData { uint64_t last_price; };    
 
     std::unordered_map<uint64_t, ClientOrder> active_icebergs; 
     std::unordered_map<uint64_t, uint64_t> child_to_parent; // Child ID -> Parent ID
@@ -97,6 +97,7 @@ public:
     explicit OrderManagementSystem(matching_engine::MatchingEngineDispatcher* eng, size_t capacity = 10000);
     ~OrderManagementSystem();
 
+    shared_data::MarketState* shared_memory_ptr = nullptr;
     void listenForClientOrder();
     void start(); 
     void stop();
