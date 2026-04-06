@@ -5,19 +5,24 @@
 #include <cstring>
 #include <sys/types.h>
 
-
 namespace TradeRingBuffer {
 
-    trade_ring_buffer::trade_ring_buffer(bool IsProducer) :
+    trade_ring_buffer::trade_ring_buffer(bool IsProducer, int buffer_id) :
         index(0),                   // to start from beginning of ring buffer
         next_expected_seq(1),       // first expected sequence number is 1 because 0 is reserved for empty slot
         is_producer(IsProducer)
     {
         // Try to create the shared memory object
-        int fd = shm_open(filename.data(), O_RDWR | O_CREAT | O_EXCL, 0666);
+        int fd = shm_open(filename[buffer_id].data(), O_RDWR | O_CREAT | O_EXCL, 0666);
 
-        if(fd == -1) fd = shm_open(filename.data(), O_RDWR, 0666); // Open existing object
-        else ftruncate(fd, sizeof(ring_buffer)); // Set size of new object
+        if(fd == -1) fd = shm_open(filename[buffer_id].data(), O_RDWR, 0666); // Open existing object
+        else {
+            if (ftruncate(fd, sizeof(ring_buffer)) == -1) {
+            perror("ftruncate");
+            close(fd);
+        // Handle error: return or throw
+    }
+        }// Set size of new object
 
         uint32_t access_flags = PROT_READ;
         if(is_producer) access_flags |= PROT_WRITE;
@@ -34,7 +39,7 @@ namespace TradeRingBuffer {
 
             bool updated = false;
 
-            if (cur == 0 || (kill(cur, 0) == -1 && errno == ESRCH)) {
+            if (cur == 0 || kill(cur, 0) == -1 && errno == ESRCH) {
                 // producer appears dead
                 pid_t expected = cur;
                 updated = rb->producer_pid.compare_exchange_strong(

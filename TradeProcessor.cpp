@@ -12,11 +12,12 @@
 #include <mutex>
 #include <condition_variable>
 #include <array>
+#include <vector>
 
 #include "trade.h"
 #include "trade_ring_buffer.h"
-// #include "spsc_queue.h"
-#include "ring_buffer.h"
+#include "spsc_queue.h"
+// #include "ring_buffer.h"
 
 static const auto time1 = std::chrono::microseconds(1);
 // const int chunk_size{pages_per_chunk * page_size};
@@ -50,10 +51,10 @@ namespace TradeProcessor{
         std::array<int, mem_regions> fdArray;
 
     public:
-        TradeProcessor(std::string fileName_):
+        TradeProcessor(std::string fileName_, int id):
         fileName(fileName_),
-        trBuffer(false),
-        rb_write("file_", fdArray),
+        trBuffer(false, id),
+        rb_write(fileName_, fdArray),
         rb_persist(fdArray)
         {
             
@@ -207,28 +208,45 @@ namespace TradeProcessor{
 }
 
 int main(){
-    TradeProcessor::TradeProcessor tp("file1.txt");
+    std::vector<TradeRingBuffer::trade_ring_buffer*> arr_trb;
+    std::vector<TradeProcessor::TradeProcessor*> arr_tp;
 
-    TradeRingBuffer::trade_ring_buffer trb(true);
+    for (int i = 0; i < TradeRingBuffer::total_ring_buffer_count; i++)
+    {
+        std::string file_name = "file_" + std::to_string(i) + "_";
+        arr_tp.emplace_back(new TradeProcessor::TradeProcessor(file_name, i));
+        arr_trb.emplace_back(new TradeRingBuffer::trade_ring_buffer(true, i));
+    }
+    auto tp_start = std::chrono::steady_clock::now();
     int trade_count{1};
-    for(int i = 0; i < maxTradesPerFile; i++){
+    for(int i = 0; i < maxTradesPerFile * TradeRingBuffer::total_ring_buffer_count; i++){
         matching_engine::Trade* t = new matching_engine::Trade();
         t->trade_id = trade_count++;
-        trb.add_trade(*t);
+        arr_trb[i / (maxTradesPerFile)]->add_trade(*t);
     }
+    auto tp_end = std::chrono::steady_clock::now();
+    std::cout << "To write: " << static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(tp_end - tp_start).count() )/ (1'000'000)<<" s\n";
     auto tp1 = std::chrono::steady_clock::now();
-    std::thread t2([&]{ tp.writerThread(); });
-    std::thread t3([&]{ tp.persistenceThread(); });
-    std::thread t4([&]{ tp.persistenceThread(); });
+    std::vector<std::thread> writer_thread_pool;
+    std::vector<std::thread> persistence_thread_pool;
+    for (int i = 0; i < TradeRingBuffer::total_ring_buffer_count; i++)
+    {   
+        writer_thread_pool.emplace_back( [&, i]{ arr_tp[i]->writerThread(); });
+        persistence_thread_pool.emplace_back([&, i]{ arr_tp[i]->persistenceThread(); });
+    }
+    // std::thread t4([&]{ tp.persistenceThread(); });
     // std::thread t1([&]{ tp.reallocator();});
     marketOpen.store(false, std::memory_order_release);
-    t2.join();
-    t3.join();
-    t4.join();
+    for (int i = 0; i < TradeRingBuffer::total_ring_buffer_count; i++)
+    {
+        writer_thread_pool[i].join();
+        persistence_thread_pool[i].join();
+    }
+    // t4.join();
     auto tp2 = std::chrono::steady_clock::now();
     std::cout<<"Time taken: "<<std::chrono::duration_cast<std::chrono::microseconds>(tp2 - tp1).count()<<" mus\n";
     std::cout<<"Time spent in writer thread: "<<writerDuration<<" mus \n";
     std::cout<<"Time spent in persistence thread: "<<persistenceDuration<<" mus \n";
-    std::cout<<"Average time per trade: "<<static_cast<double>(persistenceDuration)/maxTradesPerFile<<" mus\n";
+    std::cout<<"Average time per trade: "<<static_cast<double>(persistenceDuration)/(maxTradesPerFile * TradeRingBuffer::total_ring_buffer_count)<<" mus\n";
 
 }

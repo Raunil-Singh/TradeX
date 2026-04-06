@@ -21,7 +21,7 @@
 
 const size_t mem_regions(32);
 static int fileNumber{1};
-constexpr static int maxTradesPerFile{10'000'000}; //change later
+constexpr static int maxTradesPerFile{100'000'000}; //change later
 constexpr static int64_t fileSize{maxTradesPerFile * sizeof(matching_engine::Trade) / 24}; //Calculating the max file size, depending that all trades never exceed this amount
 const std::string path{"./file_output/"};
 

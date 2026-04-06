@@ -23,17 +23,20 @@ fdArray(fdArray)
         int fd = open(file_name.data(), O_CREAT | O_RDWR, 0644);
         if (fd == -1)
         {
-            // error in opening file
+            
+            perror("Open failed for file");
+            std::cout << i << "\n";
+            exit(-1);
         }
         fdArray[i] = fd;
+        ftruncate(fd, fileSize);//increase file size
         uint8_t* mmap_ptr = static_cast<uint8_t *>(mmap(nullptr, fileSize, PROT_WRITE, MAP_SHARED, fd, 0));
         if (mmap_ptr == MAP_FAILED)
         {
-            std::cout << "Error in initialization\n";
+            perror("Error in initialization");
             exit(-1);
             // error in mmap, based on errno, handle
         }
-        ftruncate(fd, fileSize);//increase file size
         madvise(mmap_ptr, fileSize, MADV_WILLNEED);
         give_region(mmap_ptr);
     }
