@@ -54,9 +54,6 @@ class OrderManagementSystem {
 private:
 
     std::atomic<bool> shutdown{false};
-
-    static constexpr uint64_t TICK_MAX_PRICE = UINT64_MAX;
-    static constexpr uint64_t TICK_MIN_PRICE = 1;
     static constexpr uint64_t ICEBERG_BIT    = (1ULL << 63);
     int symbolLookupTable[880000]; 
     std::atomic<uint64_t> next_oms_order_id;
@@ -103,6 +100,7 @@ public:
     void listenForClientOrder();
     void start(); 
     void stop();
+    bool enqueueClientOrder(const ClientOrder& order);
     uint64_t submit_iceberg_order(uint32_t symbol_id, uint64_t price, matching_engine::OrderType side, uint32_t total_qty, uint32_t display_qty, uint64_t trader_id);
 };
 

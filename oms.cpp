@@ -16,6 +16,8 @@ OrderManagementSystem::OrderManagementSystem(matching_engine::MatchingEngineDisp
     }
     uint64_t boot_timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
     next_oms_order_id.store(boot_timestamp, std::memory_order_relaxed);
+
+    //symbolLookupTable[34316] = 1;   //for testing AAPL orders
 }
 
 OrderManagementSystem::~OrderManagementSystem() {
@@ -57,6 +59,10 @@ void OrderManagementSystem::stop() {
     }
 }
 
+bool OrderManagementSystem::enqueueClientOrder(const ClientOrder& order) {
+    return incoming_orders.push(order);
+}
+
 void OrderManagementSystem::sendToEngine(const InternalOrder& ord) {
     engine->dispatch_order(ord);
 }
@@ -69,17 +75,21 @@ void OrderManagementSystem::listenForClientOrder() {
         while(incoming_orders.pop(new_order)) {
             uint64_t assigned_id = next_oms_order_id.fetch_add(1, std::memory_order_relaxed);
             new_order.client_order_id = assigned_id;
+            new_order.symbol_id = find_id(new_order.symbol);
             //ICEBERG
             if (new_order.execution_type == ClientOrderType::ICEBERG) {
+                //std::cout<<"OMS recieved iceberg order"<<new_order.client_order_id<<"\n";
                 active_icebergs[new_order.client_order_id] = new_order;
                 send_slice(new_order.client_order_id);
             }
             //STOP LOSS
             else if (new_order.execution_type == ClientOrderType::STOP_LOSS) {
+                //std::cout<<"OMS recieved SL order"<<new_order.client_order_id<<"\n";
                 registerStopLoss(new_order); 
             } 
             //MARKET
             else if (new_order.execution_type == ClientOrderType::MARKET) {
+                //std::cout<<"OMS recieved market order"<<new_order.client_order_id<<"\n";
                 out.execution_type = matching_engine::OrderExecutionType::MARKET;
                 out.order_id = new_order.client_order_id;
                 out.quantity = new_order.quantity;
@@ -87,11 +97,17 @@ void OrderManagementSystem::listenForClientOrder() {
                 out.timestamp = getCurrentTimestamp();
                 out.trader_id = new_order.trader_id;
                 out.type = new_order.type;
-                out.price = (new_order.type == matching_engine::OrderType::BUY) ? TICK_MAX_PRICE : TICK_MIN_PRICE;
+                if (new_order.type == matching_engine::OrderType::BUY) out.price = engine->getUpperLimit(new_order.symbol_id);
+                else out.price = engine->getLowerLimit(new_order.symbol_id);
                 sendToEngine(out); 
             }
             //LIMIT
             else {
+                if(new_order.price == 0) {
+                    std::cerr << "Invalid LIMIT order: price = 0\n";
+                    continue;
+                }
+                //std::cout<<"OMS recieved limit order"<<new_order.client_order_id<<"\n";
                 out.execution_type = matching_engine::OrderExecutionType::LIMIT;
                 out.order_id = new_order.client_order_id;
                 out.quantity = new_order.quantity;
@@ -134,39 +150,42 @@ auto MinTrigger = [](const ClientOrder& a, const ClientOrder& b) {
     return a.trigger_price > b.trigger_price; 
 };
 
-void OrderManagementSystem::registerStopLoss(const ClientOrder& ord) {
-    uint32_t sym_id = find_id(ord.symbol);
-    if (sym_id == -1) return;
+void OrderManagementSystem::registerStopLoss(const ClientOrder& ord) {   
 
     matching_engine::Order immediate_ord;
     immediate_ord.order_id = ord.client_order_id;
-    immediate_ord.symbol_id = sym_id;
+    immediate_ord.symbol_id = ord.symbol_id;
     immediate_ord.timestamp = getCurrentTimestamp();
     immediate_ord.trader_id = ord.trader_id;
     immediate_ord.quantity = ord.quantity;
     immediate_ord.execution_type = matching_engine::OrderExecutionType::MARKET;
 
-    auto& container = stop_loss_registry[sym_id & matching_engine::SYMBOL_MASK];
+    auto& container = stop_loss_registry[ord.symbol_id & matching_engine::SYMBOL_MASK];
     if (container.sell_stops.capacity() == 0) container.init();
 
+    ClientOrder stop_ord = ord;
     if (ord.type == matching_engine::OrderType::BUY) {
         immediate_ord.type = matching_engine::OrderType::BUY;
-        immediate_ord.price = TICK_MAX_PRICE; 
+        immediate_ord.price = engine->getUpperLimit(ord.symbol_id);
         //send the buy order to matching engine as market order
         sendToEngine(immediate_ord);
+        //std::cout<<"BUy part of SL order send to ME\n";
 
         //store the sell order in stop loss registry
-        container.sell_stops.push_back(ord);
+        stop_ord.type = matching_engine::OrderType::SELL;
+        container.sell_stops.push_back(stop_ord);
         std::push_heap(container.sell_stops.begin(), container.sell_stops.end(), MaxTrigger);
+        //std::cout<<"Sell part of SL order added to heap\n";
     }
     else {
         immediate_ord.type = matching_engine::OrderType::SELL;
-        immediate_ord.price = TICK_MIN_PRICE;
+        immediate_ord.price = engine->getLowerLimit(ord.symbol_id);
         //send the sell order to matching engine as market order
         sendToEngine(immediate_ord);
 
         //store the buy order in stop loss registry
-        container.buy_stops.push_back(ord);
+        stop_ord.type = matching_engine::OrderType::BUY;
+        container.buy_stops.push_back(stop_ord);
         std::push_heap(container.buy_stops.begin(), container.buy_stops.end(), MinTrigger);
     }
 }
@@ -193,6 +212,7 @@ void OrderManagementSystem::checkAndTriggerSL(uint32_t sym_id, uint64_t current_
 
         //send the order to matching engine as limit order
         sendToEngine(engine_ord);
+        //printf("Order triggered\n");
     }
 
     //Trigger all buy orders with trigger price less than current price
@@ -261,6 +281,7 @@ void OrderManagementSystem::send_slice(uint64_t parent_id) {
     child_order.trader_id = parent.trader_id;
               
     engine->dispatch_order(child_order);
+    std::cout<<"One slice sent\n";
 }
 
 void OrderManagementSystem::check_fill(const matching_engine::Trade& trade) {

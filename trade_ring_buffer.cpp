@@ -16,7 +16,13 @@ namespace TradeRingBuffer {
         int fd = shm_open(filename[buffer_id].data(), O_RDWR | O_CREAT | O_EXCL, 0666);
 
         if(fd == -1) fd = shm_open(filename[buffer_id].data(), O_RDWR, 0666); // Open existing object
-        else ftruncate(fd, sizeof(ring_buffer)); // Set size of new object
+        else {
+            if (ftruncate(fd, sizeof(ring_buffer)) == -1) {
+            perror("ftruncate");
+            close(fd);
+        // Handle error: return or throw
+    }
+        }// Set size of new object
 
         uint32_t access_flags = PROT_READ;
         if(is_producer) access_flags |= PROT_WRITE;

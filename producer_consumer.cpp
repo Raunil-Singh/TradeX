@@ -96,6 +96,7 @@ public:
         Order cur_order;
         // std::vector<int64_t> processing_times;
         // processing_times.reserve(9000000);
+        //printf("Group %d started\n",group_no);
         
         is_running_flag.store(true, std::memory_order_release);
         
@@ -104,6 +105,7 @@ public:
                 // std::cout << "Processing order for group " << group_no << ": " << cur_order.order_id << std::endl;
 
                 // auto start = std::chrono::high_resolution_clock::now();
+                //printf("Order %ld recieved by matching-engine.\n",cur_order.order_id);
                 process_order(cur_order);
                 // auto end = std::chrono::high_resolution_clock::now();
                 // std::cout << "Finished processing order for group " << group_no << ": " << cur_order.order_id << std::endl << std::endl;
@@ -151,6 +153,7 @@ public:
         OrderBook &book = bookmanager->get((order.symbol_id) & SYMBOL_MASK);
         if(book.bestsellprice() > order.price) [[likely]] {
             book.addBuyOrder(order);
+            //std::cout<<"Order"<<order.order_id<<"added to order book\n";
             return;
         }
         
@@ -158,7 +161,7 @@ public:
         while(order.quantity > 0 && best_price <= order.price) {
             uint32_t price_index = book.priceToIndex(best_price);
             
-            if(book.getpricelevels(price_index).gethead()->order.quantity >= order.quantity) {
+            if(book.getpricelevels(price_index).gethead()->order.quantity > order.quantity) {
                 
                 publish_trade({
                     .trade_id = next_trade_id++,
@@ -195,6 +198,7 @@ public:
         }
         if(order.quantity > 0) {
             book.addBuyOrder(order);
+            //std::cout<<"Order"<<order.order_id<<"added to order book\n";
         }
     }
 
@@ -202,6 +206,7 @@ public:
         OrderBook &book = bookmanager->get((order.symbol_id) & SYMBOL_MASK);
         if(book.bestbuyprice() < order.price) [[likely]] {
             book.addSellOrder(order);
+            //std::cout<<"Order"<<order.order_id<<"added to order book\n";
             return;
         }
 
@@ -209,7 +214,7 @@ public:
         while(order.quantity > 0 && best_price >= order.price) {
             uint64_t price_index = book.priceToIndex(best_price);
 
-            if(book.getpricelevels(price_index).gethead()->order.quantity >= order.quantity) {
+            if(book.getpricelevels(price_index).gethead()->order.quantity > order.quantity) {
             
                 publish_trade({
                     .trade_id = next_trade_id++,
@@ -246,6 +251,7 @@ public:
         }
         if(order.quantity > 0) {
             book.addSellOrder(order);
+            //std::cout<<"Order"<<order.order_id<<"added to order book\n";
         }
     }
 
@@ -255,6 +261,7 @@ public:
     }
 
     void publish_trade(Trade &&trade) {
+            //printf("Trade Executed succesfully between %ld and %ld at %ld\n",trade.buy_order_id, trade.sell_order_id, trade.price);
             trade_buffer.add_trade(trade);
     }
 
@@ -266,12 +273,16 @@ private:
     std::atomic<bool> terminate_flag{false};
     std::atomic<bool> is_running_flag{false};
     shared_data::MarketState* shared_ltp_ptr;
+    uint64_t lower_limits_cache[MAX_SYMBOLS];
+    uint64_t upper_limits_cache[MAX_SYMBOLS];
     int shm_fd;
 
 public:
     MatchingEngineDispatcher(uint64_t capacity) {
         shm_fd = shm_open("/oms_market_data", O_CREAT | O_RDWR, 0666);
-        ftruncate(shm_fd, sizeof(shared_data::MarketState));
+        if (ftruncate(shm_fd, sizeof(shared_data::MarketState)) == -1) {
+            perror("ftruncate");
+        }
         shared_ltp_ptr = (shared_data::MarketState*)mmap(NULL, sizeof(shared_data::MarketState), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
             
         for(int i = 0; i<MAX_SYMBOLS; i++) shared_ltp_ptr->last_price[i] = 0;
@@ -306,6 +317,7 @@ public:
     void dispatch_order(const Order& order) {
 
         int group = (order.symbol_id >> SYMBOL_BITS);
+        //printf("Order %ld recieved\n",order.order_id);
         while(!groups[group]->enqueue_order(order));
         
     }
@@ -330,15 +342,27 @@ public:
 
     // One time setup to load order books into the book manager of each group processor.
     // This can be extended to support dynamic addition of order books as well.
-    void initialize_engine(uint64_t* lower_limits,
-                       uint64_t* upper_limits)
+    void initialize_engine(uint64_t* lower_limits, uint64_t* upper_limits)
     {
-        // for(auto &group : groups) {
-        //     auto book_manager = group->setup_book_manager();
-        //     for(uint32_t symbol_id = 0; symbol_id < group_count; symbol_id++) {
-        //         book_manager->addBook(symbol_id, POOL_SIZE, lower_limits[symbol_id], upper_limits[symbol_id]);
-        //     }
-        // }
+        for (uint32_t symbol_id = 0; symbol_id < MAX_SYMBOLS; symbol_id++) {
+            lower_limits_cache[symbol_id] = lower_limits[symbol_id];
+            upper_limits_cache[symbol_id] = upper_limits[symbol_id];
+        }
+
+        for(auto &group : groups) {
+            auto book_manager = group->setup_book_manager();
+            for(uint32_t symbol_id = 0; symbol_id < MAX_SYMBOLS; symbol_id++) {
+                book_manager->addBook(symbol_id, 10000, lower_limits[symbol_id], upper_limits[symbol_id]);
+            }
+        }
+    }
+
+    uint64_t getUpperLimit(uint32_t symbol_id) const {
+        return upper_limits_cache[symbol_id & SYMBOL_MASK];
+    }
+
+    uint64_t getLowerLimit(uint32_t symbol_id) const {
+        return lower_limits_cache[symbol_id & SYMBOL_MASK];
     }
 
     ~MatchingEngineDispatcher() {
@@ -349,15 +373,15 @@ public:
 };
 }
 
-int main() {
-    std::cout << "Starting System..." << std::endl;
-    std::cout << "Order size: " << sizeof(matching_engine::Order) << std::endl;
-    matching_engine::MatchingEngineDispatcher dispatcher(10000); // Random value of capacity passed
+// int main() {
+//     std::cout << "Starting System..." << std::endl;
+//     std::cout << "Order size: " << sizeof(matching_engine::Order) << std::endl;
+//     matching_engine::MatchingEngineDispatcher dispatcher(10000); // Random value of capacity passed
     
-    std::thread dispatcher_system([&dispatcher]() {
-        dispatcher.start();
-    });
-    dispatcher_system.join();
+//     std::thread dispatcher_system([&dispatcher]() {
+//         dispatcher.start();
+//     });
+//     dispatcher_system.join();
     
-    return 0;
-}
+//     return 0;
+// }
