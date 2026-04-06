@@ -15,8 +15,8 @@
 
 #include "trade.h"
 #include "trade_ring_buffer.h"
-#include "spsc_queue.h"
-// #include "ring_buffer.h"
+// #include "spsc_queue.h"
+#include "ring_buffer.h"
 
 static const auto time1 = std::chrono::microseconds(1);
 // const int chunk_size{pages_per_chunk * page_size};
@@ -87,7 +87,7 @@ namespace TradeProcessor{
                 {
                     if (rb_write.get_region(mem_region))
                     {
-                        std::cout << "claimed region at trade counter(rb_write) = " << ++region_claims<< "\n";
+                        // std::cout << "claimed region at trade counter(rb_write) = " << ++region_claims<< "\n";
                         writeOffset = 0;
                     }
                     else
@@ -114,7 +114,7 @@ namespace TradeProcessor{
                 not creating too many blocks that we exceed ram storage.*/
                 if(writeOffset >= fileSize){
                     rb_persist.give_region(mem_region);
-                    std::cout << "gave region at trade counter(rb_persist) = " << ++region_gaves << "\n";
+                    // std::cout << "gave region at trade counter(rb_persist) = " << ++region_gaves << "\n";
                     mem_region = nullptr;
                     //break;
                 }
@@ -144,7 +144,7 @@ namespace TradeProcessor{
                         continue;
                     }
                 }
-                std::cout << "claimed region at trade counter(rb_persist) =  "<< ++region_claims<<"\n";
+                // std::cout << "claimed region at trade counter(rb_persist) =  "<< ++region_claims<<"\n";
                 // //check if local_chunk != global, improve this part
                 // if(curr_chunk.load(std::memory_order_acquire) == local_chunk_counter){
 
@@ -153,7 +153,7 @@ namespace TradeProcessor{
 
                 msync(mem_region, fileSize, MS_SYNC); //want to change this to MS_SYNC
                 rb_write.give_region(mem_region);
-                std::cout << "gave region at trade counter(rb_write) = "<<++region_gaves<<" \n";
+                // std::cout << "gave region at trade counter(rb_write) = "<<++region_gaves<<" \n";
                 mem_region = nullptr;
                 // msync(mem_region + local_chunk_counter * chunk_size, (curr_chunk - local_chunk_counter) * chunk_size, MS_ASYNC); // potential spin wait workaround like above
                 // local_chunk_counter = curr_chunk.load(std::memory_order_acquire);
@@ -219,10 +219,12 @@ int main(){
     auto tp1 = std::chrono::steady_clock::now();
     std::thread t2([&]{ tp.writerThread(); });
     std::thread t3([&]{ tp.persistenceThread(); });
+    std::thread t4([&]{ tp.persistenceThread(); });
     // std::thread t1([&]{ tp.reallocator();});
     marketOpen.store(false, std::memory_order_release);
     t2.join();
     t3.join();
+    t4.join();
     auto tp2 = std::chrono::steady_clock::now();
     std::cout<<"Time taken: "<<std::chrono::duration_cast<std::chrono::microseconds>(tp2 - tp1).count()<<" mus\n";
     std::cout<<"Time spent in writer thread: "<<writerDuration<<" mus \n";
