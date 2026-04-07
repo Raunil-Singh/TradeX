@@ -169,6 +169,9 @@ class OrderBook{
         uint64_t default_best_buy_price;
         uint64_t default_best_sell_price;
 
+        uint64_t total_buy_qty;
+        uint64_t total_sell_qty;
+
     public:
         OrderBook(size_t poolSize, uint64_t lower_price, uint64_t upper_price) :
                 lower_limit(lower_price),
@@ -232,6 +235,7 @@ class OrderBook{
             if(price_level_is_empty && !heap_entry)
                 next_buy_price.push(order.price);
             
+            total_buy_qty += order.quantity;
             return true;
         }
 
@@ -250,6 +254,7 @@ class OrderBook{
             if(price_level_is_empty && !heap_entry)
                 next_sell_price.push(order.price);
             
+            total_sell_qty += order.quantity;
             return true;
         }
 
@@ -264,6 +269,7 @@ class OrderBook{
             int idx = priceToIndex(price);
             if(price_levels[idx].isEmpty()) [[unlikely]] return false;
             uint64_t id = price_levels[idx].gethead()->order.order_id;
+            uint32_t qty = price_levels[idx].gethead()->order.quantity;
             
             auto it = orderMap.find(id);
             if(it == orderMap.end()) [[unlikely]] return false;
@@ -272,6 +278,7 @@ class OrderBook{
             bool removed = price_levels[idx].removeOrder(index);
             if(removed){
                 orderMap.erase(id);
+                total_buy_qty -= qty;
                 // Heap Entry will be removed in bestbuyprice() when it is encountered as top and found empty
             }
             return removed;
@@ -281,6 +288,7 @@ class OrderBook{
             int idx = priceToIndex(price);
             if(price_levels[idx].isEmpty()) [[unlikely]] return false;
             uint64_t id = price_levels[idx].gethead()->order.order_id;
+            uint64_t qty = price_levels[idx].gethead()->order.quantity;
             
             auto it = orderMap.find(id);
             if(it == orderMap.end()) [[unlikely]] return false;
@@ -289,6 +297,7 @@ class OrderBook{
             bool removed = price_levels[idx].removeOrder(index);
             if(removed){
                 orderMap.erase(id);
+                total_sell_qty -= qty;
                 // Heap Entry will be removed in bestsellprice() when it is encountered as top and found empty
             }
             return removed;
@@ -314,8 +323,15 @@ class OrderBook{
             price_levels[idx].gethead()->order.quantity = new_qty;
             return true;
         }
-        
 
+        uint64_t getTotalBuyQty() const { return total_buy_qty; }
+        uint64_t getTotalSellQty() const { return total_sell_qty; }
+        uint64_t getTotalQty() const { return total_buy_qty + total_sell_qty; }
+        
+        inline bool isPriceValid(uint64_t price) const {
+            return price >= lower_limit && price <= upper_limit;
+        }
+        
         ~OrderBook() = default;
 
 };

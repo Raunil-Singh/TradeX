@@ -249,12 +249,44 @@ public:
     }
 
     void process_order(const Order& order) {
+
+        OrderBook &book = bookmanager->get((order.symbol_id) & SYMBOL_MASK);
+
+        if (!book.isPriceValid(order.price)) {
+            if(order.type == matching_engine::OrderType::BUY && order.quantity > book.getTotalSellQty()){
+                std::cout<<" Order "<<order.order_id<<" cancelled\n";
+                publish_trade({
+                    .trade_id = next_trade_id++,
+                    .timestamp_ns = order.timestamp,
+                    .price = 0,
+                    .buy_order_id = order.order_id,
+                    .sell_order_id = 0,
+                    .symbol_id = order.symbol_id,
+                    .quantity = 0
+                });
+                return;
+            }
+            if(order.type == matching_engine::OrderType::SELL && order.quantity > book.getTotalBuyQty()){
+                std::cout<<" Order "<<order.order_id<<" cancelled\n";
+                publish_trade({
+                    .trade_id = next_trade_id++,
+                    .timestamp_ns = order.timestamp,
+                    .price = 0,
+                    .buy_order_id = 0,
+                    .sell_order_id = order.order_id,
+                    .symbol_id = order.symbol_id,
+                    .quantity = 0
+                });
+                return;
+            }
+        }
+
         if(order.type == OrderType::BUY) process_buy(order);
         else process_sell(order);
     }
 
     void publish_trade(Trade &&trade) {
-            //printf("Trade Executed succesfully between %ld and %ld at %ld\n",trade.buy_order_id, trade.sell_order_id, trade.price);
+            std::cout<<"Trade executed successfully between "<<trade.buy_order_id<<" and "<<trade.sell_order_id<<" at "<<trade.price<<std::endl;
             trade_buffer.add_trade(trade);
     }
 

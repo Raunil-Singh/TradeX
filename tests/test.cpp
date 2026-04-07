@@ -55,6 +55,13 @@ int main() {
     aapl_buy2.execution_type = oms::ClientOrderType::LIMIT;
     strcpy(aapl_buy2.symbol, "AAPL");
 
+    //MARKET TEST
+    oms::ClientOrder aapl_m{};
+    aapl_m.quantity = 100;
+    aapl_m.type = matching_engine::OrderType::BUY;
+    aapl_m.execution_type = oms::ClientOrderType::MARKET;
+    strcpy(aapl_m.symbol,"AAPL");
+
     //STOP LOSS TEST
     oms::ClientOrder aapl_sell_l{};
     aapl_sell_l.price = 10000;
@@ -88,7 +95,7 @@ int main() {
     oms::ClientOrder aapl_buy_b3{};
     aapl_buy_b3.price = 9400;
     aapl_buy_b3.quantity = 100;
-    aapl_buy_b3.type = matching_engine::OrderType::BUY;
+    aapl_buy_b3.type = matching_engine::OrderType::SELL;
     aapl_buy_b3.execution_type = oms::ClientOrderType::LIMIT;
     strcpy(aapl_buy_b3.symbol, "AAPL");
 
@@ -166,7 +173,7 @@ int main() {
     oms::ClientOrder tsla_buy_b3{};
     tsla_buy_b3.price = 9400;
     tsla_buy_b3.quantity = 100;
-    tsla_buy_b3.type = matching_engine::OrderType::BUY;
+    tsla_buy_b3.type = matching_engine::OrderType::SELL;
     tsla_buy_b3.execution_type = oms::ClientOrderType::LIMIT;
     strcpy(tsla_buy_b3.symbol, "TSLA");
 
@@ -191,19 +198,20 @@ int main() {
     //std::cout << "Dispatching orders to Group 0 (AAPL) and Group 1 (TSLA)..." << std::endl;
 
       // Queue orders interleaved to see threads working
+      while(!oms_system.enqueueClientOrder(aapl_m)){}
        while(!oms_system.enqueueClientOrder(aapl_sell)) {} // Group 0
        while(!oms_system.enqueueClientOrder(tsla_sell)) {} // Group 1
     
        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     
     while(!oms_system.enqueueClientOrder(aapl_buy)) {}  // Group 0 trade
-   while(!oms_system.enqueueClientOrder(tsla_buy)) {}  // Group 1 trade
+    while(!oms_system.enqueueClientOrder(tsla_buy)) {}  // Group 1 trade
     while(!oms_system.enqueueClientOrder(aapl_buy2)) {}  // Group 0 trade
-   while(!oms_system.enqueueClientOrder(tsla_buy2)) {}  // Group 1 trade
+    while(!oms_system.enqueueClientOrder(tsla_buy2)) {}  // Group 1 trade
 
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    while(!oms_system.enqueueClientOrder(aapl_sell_l)) {}
+    // while(!oms_system.enqueueClientOrder(aapl_sell_l)) {}
     while(!oms_system.enqueueClientOrder(aapl_sl_b)) {}
     while(!oms_system.enqueueClientOrder(aapl_sell_l2)) {}
     while(!oms_system.enqueueClientOrder(aapl_buy_b2)) {}
@@ -211,16 +219,16 @@ int main() {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    while(!oms_system.enqueueClientOrder(tsla_sell_l)) {}
+    // while(!oms_system.enqueueClientOrder(tsla_sell_l)) {}
     while(!oms_system.enqueueClientOrder(tsla_sl_b)) {}
     while(!oms_system.enqueueClientOrder(tsla_sell_l2)) {}
     while(!oms_system.enqueueClientOrder(tsla_buy_b2)) {}
     while(!oms_system.enqueueClientOrder(tsla_buy_b3)) {}
 
-    while(!oms_system.enqueueClientOrder(aapl_ib_b)){};
-    while(!oms_system.enqueueClientOrder(tsla_ib_b)){};
-    while(!oms_system.enqueueClientOrder(aapl_ib)){};
-    while(!oms_system.enqueueClientOrder(tsla_ib)){};
+    // while(!oms_system.enqueueClientOrder(aapl_ib_b)){};
+    // while(!oms_system.enqueueClientOrder(tsla_ib_b)){};
+    // while(!oms_system.enqueueClientOrder(aapl_ib)){};
+    // while(!oms_system.enqueueClientOrder(tsla_ib)){};
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     std::cout << "Test Complete. Check logs for processing." << std::endl;

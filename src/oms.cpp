@@ -86,27 +86,26 @@ void OrderManagementSystem::listenForClientOrder() {
             new_order.symbol_id = find_id(new_order.symbol);
             //ICEBERG
             if (new_order.execution_type == ClientOrderType::ICEBERG) {
-                //std::cout<<"OMS recieved iceberg order"<<new_order.client_order_id<<"\n";
+                std::cout<<"OMS recieved iceberg order"<<new_order.client_order_id<<"\n";
                 active_icebergs[new_order.client_order_id] = new_order;
                 send_slice(new_order.client_order_id);
             }
             //STOP LOSS
             else if (new_order.execution_type == ClientOrderType::STOP_LOSS) {
-                //std::cout<<"OMS recieved SL order"<<new_order.client_order_id<<"\n";
+                std::cout<<"OMS recieved SL order"<<new_order.client_order_id<<"\n";
                 registerStopLoss(new_order); 
             } 
             //MARKET
             else if (new_order.execution_type == ClientOrderType::MARKET) {
-                //std::cout<<"OMS recieved market order"<<new_order.client_order_id<<"\n";
-                out.execution_type = matching_engine::OrderExecutionType::MARKET;
+                std::cout<<"OMS recieved market order"<<new_order.client_order_id<<"\n";
                 out.order_id = new_order.client_order_id;
                 out.quantity = new_order.quantity;
                 out.symbol_id = new_order.symbol_id;
                 out.timestamp = getCurrentTimestamp();
                 out.trader_id = new_order.trader_id;
                 out.type = new_order.type;
-                if (new_order.type == matching_engine::OrderType::BUY) out.price = engine->getUpperLimit(new_order.symbol_id);
-                else out.price = engine->getLowerLimit(new_order.symbol_id);
+                if (new_order.type == matching_engine::OrderType::BUY) out.price = engine->getUpperLimit(new_order.symbol_id)+1;
+                else out.price = engine->getLowerLimit(new_order.symbol_id)-1;
                 sendToEngine(out); 
             }
             //LIMIT
@@ -115,8 +114,7 @@ void OrderManagementSystem::listenForClientOrder() {
                     std::cerr << "Invalid LIMIT order: price = 0\n";
                     continue;
                 }
-                //std::cout<<"OMS recieved limit order"<<new_order.client_order_id<<"\n";
-                out.execution_type = matching_engine::OrderExecutionType::LIMIT;
+                std::cout<<"OMS recieved limit order"<<new_order.client_order_id<<"\n";
                 out.order_id = new_order.client_order_id;
                 out.quantity = new_order.quantity;
                 out.symbol_id = new_order.symbol_id;
@@ -160,41 +158,17 @@ auto MinTrigger = [](const ClientOrder& a, const ClientOrder& b) {
 
 void OrderManagementSystem::registerStopLoss(const ClientOrder& ord) {   
 
-    matching_engine::Order immediate_ord;
-    immediate_ord.order_id = ord.client_order_id;
-    immediate_ord.symbol_id = ord.symbol_id;
-    immediate_ord.timestamp = getCurrentTimestamp();
-    immediate_ord.trader_id = ord.trader_id;
-    immediate_ord.quantity = ord.quantity;
-    immediate_ord.execution_type = matching_engine::OrderExecutionType::MARKET;
-
     auto& container = stop_loss_registry[ord.symbol_id & matching_engine::SYMBOL_MASK];
     if (container.sell_stops.capacity() == 0) container.init();
 
     ClientOrder stop_ord = ord;
     if (ord.type == matching_engine::OrderType::BUY) {
-        immediate_ord.type = matching_engine::OrderType::BUY;
-        immediate_ord.price = engine->getUpperLimit(ord.symbol_id);
-        //send the buy order to matching engine as market order
-        sendToEngine(immediate_ord);
-        //std::cout<<"BUy part of SL order send to ME\n";
-
-        //store the sell order in stop loss registry
-        stop_ord.type = matching_engine::OrderType::SELL;
-        container.sell_stops.push_back(stop_ord);
-        std::push_heap(container.sell_stops.begin(), container.sell_stops.end(), MaxTrigger);
-        //std::cout<<"Sell part of SL order added to heap\n";
-    }
-    else {
-        immediate_ord.type = matching_engine::OrderType::SELL;
-        immediate_ord.price = engine->getLowerLimit(ord.symbol_id);
-        //send the sell order to matching engine as market order
-        sendToEngine(immediate_ord);
-
-        //store the buy order in stop loss registry
-        stop_ord.type = matching_engine::OrderType::BUY;
         container.buy_stops.push_back(stop_ord);
         std::push_heap(container.buy_stops.begin(), container.buy_stops.end(), MinTrigger);
+    }
+    else {
+        container.sell_stops.push_back(stop_ord);
+        std::push_heap(container.sell_stops.begin(), container.sell_stops.end(), MaxTrigger);
     }
 }
 
@@ -214,9 +188,8 @@ void OrderManagementSystem::checkAndTriggerSL(uint32_t sym_id, uint64_t current_
         engine_ord.symbol_id = find_id(triggered_client_ord.symbol);
         engine_ord.timestamp = getCurrentTimestamp();
         engine_ord.trader_id = triggered_client_ord.trader_id;
-        engine_ord.type = matching_engine::OrderType::SELL; 
+        engine_ord.type = triggered_client_ord.type;
         engine_ord.quantity = triggered_client_ord.quantity;
-        engine_ord.execution_type = matching_engine::OrderExecutionType::LIMIT;
 
         //send the order to matching engine as limit order
         sendToEngine(engine_ord);
@@ -236,9 +209,8 @@ void OrderManagementSystem::checkAndTriggerSL(uint32_t sym_id, uint64_t current_
         engine_ord.symbol_id = find_id(triggered_client.symbol);
         engine_ord.timestamp = getCurrentTimestamp();
         engine_ord.trader_id = triggered_client.trader_id;
-        engine_ord.type = matching_engine::OrderType::BUY;
+        engine_ord.type = triggered_client.type;
         engine_ord.quantity = triggered_client.quantity;
-        engine_ord.execution_type = matching_engine::OrderExecutionType::LIMIT;
 
         //send the order to matching engine as limit order
         sendToEngine(engine_ord);
@@ -285,7 +257,6 @@ void OrderManagementSystem::send_slice(uint64_t parent_id) {
     child_order.price = parent.price;
     child_order.quantity = slice_qty;
     child_order.type = parent.type;
-    child_order.execution_type = matching_engine::OrderExecutionType::LIMIT;
     child_order.trader_id = parent.trader_id;
               
     engine->dispatch_order(child_order);

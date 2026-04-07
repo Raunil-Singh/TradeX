@@ -38,7 +38,6 @@ typedef struct {
     OrderType type;  
     uint32_t symbol_id;                 // lower  bits for symbol id, upper 22 bits 
     uint32_t quantity;
-    OrderExecutionType execution_type;
 } Order;
 }
 #endif
