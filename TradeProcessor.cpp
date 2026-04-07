@@ -1,209 +1,173 @@
-/* This is not robust yet, as we're dealing with hand off issues with the block. Refer to writer thread for more details.*/
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include <atomic>
-#include <thread>
-#include <chrono>
-#include <string>
-#include <string_view>
-#include <cstring>
-#include <shared_mutex>
-#include <mutex>
-#include <condition_variable>
-#include <array>
-#include <vector>
+#include "Trade_Processor.h"
 
-#include "trade.h"
-#include "trade_ring_buffer.h"
-#include "spsc_queue.h"
-// #include "ring_buffer.h"
 
-static const auto time1 = std::chrono::microseconds(1);
-// const int chunk_size{pages_per_chunk * page_size};
-// constexpr static double reallocation_threshold{0.5};
-
-std::atomic<bool> marketOpen{true};
-static int writerDuration;
-static int persistenceDuration;
 
 
 namespace TradeProcessor{
-    class TradeProcessor{
-    private:
-        std::atomic_uint32_t curr_chunk{0};
-        uint8_t* mmapPtr;
-        uint8_t* mmapPtrTemp;
-        std::string fileName;
-        uint64_t lastOffset{0};
-        int fd;
-        std::atomic_bool t2done{false};
-        TradeRingBuffer::trade_ring_buffer trBuffer;
-        #ifdef SPSC_QUEUE
-        spsc_queue rb_write;
-        spsc_queue rb_persist;
-        #endif
 
-        #ifdef RING_BUFFER
-        ring_buffer_mem rb_write;
-        ring_buffer_mem rb_persist;
-        #endif
-        std::array<int, mem_regions> fdArray;
 
-    public:
-        TradeProcessor(std::string fileName_, int id):
-        fileName(fileName_),
-        trBuffer(false, id),
-        rb_write(fileName_, fdArray),
-        rb_persist(fdArray)
+
+    spsc_queue::spsc_queue(std::array<int, mem_regions>& fdArray):
+    fdArray(fdArray)
+    {
+        head.store(0, std::memory_order_relaxed);
+        tail.store(0, std::memory_order_relaxed);
+
+        
+    }
+
+
+    spsc_queue::spsc_queue(std::string file_name_base, std::array<int, mem_regions>& fdArray) :
+    file_name_base(file_name_base), 
+    fdArray(fdArray)
+    {
+        head.store(0, std::memory_order_relaxed);
+        tail.store(0, std::memory_order_relaxed);
+        for (int i = 0; i < mem_regions - 1; i++)
         {
-            
-
-
-            // //fileName must follow our convention, specified by reallocator
-            // fd = open((path + fileName).data(), O_CREAT|O_RDWR, 0644);
-            // if(fd == -1){
-            //     //error in opening file
-            // }
-            // ftruncate(fd, fileSize);//increase file size
-            // mmapPtr = static_cast<uint8_t*> (mmap(nullptr, fileSize, PROT_WRITE, MAP_SHARED, fd, 0));
-            // madvise(mmapPtr, fileSize, MADV_WILLNEED);
-            
-        }
-
-        void writerThread(){
-            //no shutdown implemented yet. 
-            uint64_t writeOffset{0};
-            auto tstart = std::chrono::steady_clock::now();
-            uint8_t* mem_region = nullptr;
-            // std::thread reallocatorThread(reallocator); why is this here
-            int trade_counter{};
-            int region_claims{};
-            int region_gaves{};
-            while(trade_counter < maxTradesPerFile){ //add in proper 
-                while(!trBuffer.any_new_trade()){ // potential fix and backoff?
-
-                }
-                if (mem_region == nullptr)
-                {
-                    if (rb_write.get_region(mem_region))
-                    {
-                        // std::cout << "claimed region at trade counter(rb_write) = " << ++region_claims<< "\n";
-                        writeOffset = 0;
-                    }
-                    else
-                    {
-                        // std::cout << "..\n";
-                        continue;
-                    }
-                }
-                //write into our memory block
-                // trBuffer.get_trade(mmapPtr + writeOffset);
-                trBuffer.get_trade(mem_region + writeOffset);
-                writeOffset += sizeof(matching_engine::Trade);
-                trade_counter++;
-                //NOT REQUIRED
-                // //update current chunk to be most up to date
-                // if(writeOffset >= (curr_chunk + 1) * chunk_size){
-                //     curr_chunk.fetch_add((writeOffset - curr_chunk * chunk_size) / chunk_size, std::memory_order_release);
-                // }
-
-
-                /*This is the most problematic section, as we're updating global mmapPtr, but that affects our persistence thread as well.
-                The root cause behind this is the fact that we have no guarantees we will not exceed our original mmap block. We need a way
-                to reliably handle switchover to new blocks with persistence thread still having the info of the old block, as well as
-                not creating too many blocks that we exceed ram storage.*/
-                if(writeOffset >= fileSize){
-                    rb_persist.give_region(mem_region);
-                    // std::cout << "gave region at trade counter(rb_persist) = " << ++region_gaves << "\n";
-                    mem_region = nullptr;
-                    //break;
-                }
-            }
-            if (mem_region != nullptr){
-                rb_persist.give_region(mem_region);
-            }
-            curr_chunk++;
-            t2done.store(true, std::memory_order_release);
-            auto tdone = std::chrono::steady_clock::now();
-            writerDuration = std::chrono::duration_cast<std::chrono::microseconds>(tdone - tstart).count();
-
-        }
-        /*Only has an issue with losing previous block before all chunks could be synced.*/
-        void persistenceThread(){
-            auto tstart = std::chrono::steady_clock::now();
-            // uint32_t local_chunk_counter{};
-            uint8_t* mem_region = nullptr;
-            int region_claims{};
-            int region_gaves{};
-            while(!t2done.load(std::memory_order_acquire)){
-                if(mem_region == nullptr) // want potential backoffs, if necessary?
-                {
-                    if (!rb_persist.get_region(mem_region)) // get new changes
-                    {
-                        // std::cout << ".\n";
-                        continue;
-                    }
-                }
-                // std::cout << "claimed region at trade counter(rb_persist) =  "<< ++region_claims<<"\n";
-                // //check if local_chunk != global, improve this part
-                // if(curr_chunk.load(std::memory_order_acquire) == local_chunk_counter){
-
-                //     continue;
-                // }
-
-                msync(mem_region, fileSize, MS_SYNC); //want to change this to MS_SYNC
-                rb_write.give_region(mem_region);
-                // std::cout << "gave region at trade counter(rb_write) = "<<++region_gaves<<" \n";
-                mem_region = nullptr;
-                // msync(mem_region + local_chunk_counter * chunk_size, (curr_chunk - local_chunk_counter) * chunk_size, MS_ASYNC); // potential spin wait workaround like above
-                // local_chunk_counter = curr_chunk.load(std::memory_order_acquire);
-
-                // if (local_chunk_counter * chunk_size >= maxTradesPerFile) //if exceeded filesize (possibly increase file size by some amount so that we dont crash?), but will we ever exceed, if everything is multiples??
-                // {
-                //     rb_write.give_region(mem_region);
-                //     mem_region = nullptr;
-                // }
-            }
-
-            //could all below be put in above working queue???
-            // if(local_chunk_counter != curr_chunk.load(std::memory_order_relaxed) && mem_region != nullptr){
-            //     msync(mem_region + local_chunk_counter * chunk_size, (curr_chunk - local_chunk_counter) * chunk_size, MS_ASYNC);
-            // }
-            if (mem_region != nullptr){
-                msync(mem_region, fileSize, MS_SYNC);
-                rb_write.give_region(mem_region);
-            }
-
-            //sync remaining regions
-            while (rb_persist.get_region(mem_region))
+            std::string file_name = path + file_name_base + std::to_string(fileNumber++);
+            int fd = open(file_name.data(), O_CREAT | O_RDWR, 0644);
+            if (fd == -1)
             {
-                rb_write.give_region(mem_region); //for easy closure later
-                msync(mem_region, fileSize, MS_SYNC);
-
+                
+                perror("Open failed for file");
+                std::cout << i << "\n";
+                exit(-1);
             }
+            fdArray[i] = fd;
+            ftruncate(fd, fileSize);//increase file size
+            uint8_t* mmap_ptr = static_cast<uint8_t *>(mmap(nullptr, fileSize, PROT_WRITE, MAP_SHARED, fd, 0));
+            if (mmap_ptr == MAP_FAILED)
+            {
+                perror("Error in initialization");
+                exit(-1);
+                // error in mmap, based on errno, handle
+            }
+            madvise(mmap_ptr, fileSize, MADV_WILLNEED);
+            give_region(mmap_ptr);
+        }
+    }
+    bool spsc_queue::give_region(uint8_t* pmem_region)
+    {
+        uint64_t _head = head.load(std::memory_order_acquire);
+        uint64_t _tail = tail.load(std::memory_order_relaxed);
 
-            //this should be handled while closing the ring buffers
-            munmap(mmapPtr, fileSize);
-            close(fd);
-            auto tend = std::chrono::steady_clock::now();
-            persistenceDuration = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
+        if (((_tail + 1) & (mem_regions - 1)) != (_head & (mem_regions - 1))) // queue not full
+        {
+            memRegions[_tail & (mem_regions - 1)] = pmem_region;
+            tail.store(_tail + 1, std::memory_order_release);
+            return true;
         }
 
-        //UNNECESSARY;
-        //This is fine, no issues that we can see so far
-        // void reallocator(){
-        //     //do we need strict memory ordering here, and how to optimize any overusage of atomics
-        //     while(marketOpen||!t2done.load(std::memory_order_acquire)){
-        //         if(curr_chunk.load(std::memory_order_relaxed) * chunk_size > reallocation_threshold * fileSize){
-        //             std::string file_name = "file" + std::to_string(++fileNumber);
-        //             fd = open((path + file_name).data(), O_CREAT|O_RDWR, 0644); // updated file descriptor
-        //             ftruncate(fd, fileSize); //size allocated
-        //             mmapPtrTemp = static_cast<uint8_t*>(mmap(nullptr, fileSize, PROT_WRITE, MAP_SHARED, fd, 0));
-        //         }
-        //     }
-        // }
-    };
+        return false;
+    }
+
+    bool spsc_queue::get_region(uint8_t*& out)
+    {
+        uint64_t _head = head.load(std::memory_order_relaxed);
+        uint64_t _tail = tail.load(std::memory_order_acquire);
+
+        if (_tail != _head) // queue not empty
+        {
+            out = memRegions[_head & (mem_regions - 1)];
+            head.store(_head + 1, std::memory_order_release);
+            return true;
+        }
+
+        return false;
+    }
+    void TradeProcessor::writerThread(){
+        //no shutdown implemented yet. 
+        uint64_t writeOffset{0};
+        auto tstart = std::chrono::steady_clock::now();
+        uint8_t* mem_region = nullptr;
+
+        int trade_counter{};
+        int region_claims{};
+        int region_gaves{};
+        while(trade_counter < maxTradesPerTP){ //add in proper 
+            while(!trBuffer.any_new_trade()){ // potential fix and backoff?
+
+            }
+            if (mem_region == nullptr)
+            {
+                if (rb_write.get_region(mem_region))
+                {
+                    writeOffset = 0;
+                }
+                else
+                {
+
+                    continue;
+                }
+            }
+            //write into our memory block
+
+            trBuffer.get_trade(mem_region + writeOffset);
+            writeOffset += sizeof(matching_engine::Trade);
+            trade_counter++;
+
+            //give memory block to make persisten
+            if(writeOffset >= fileSize){
+                rb_persist.give_region(mem_region);
+                mem_region = nullptr;
+            }
+        }
+        if (mem_region != nullptr){
+            rb_persist.give_region(mem_region);
+        }
+        curr_chunk++;
+        t2done.store(true, std::memory_order_release);
+        auto tdone = std::chrono::steady_clock::now();
+        writerDuration = std::chrono::duration_cast<std::chrono::microseconds>(tdone - tstart).count();
+
+    }
+
+    void TradeProcessor::persistenceThread(){
+        auto tstart = std::chrono::steady_clock::now();
+
+        uint8_t* mem_region = nullptr;
+        int region_claims{};
+        int region_gaves{};
+        while(!t2done.load(std::memory_order_acquire)){
+            if(mem_region == nullptr) // want potential backoffs, if necessary?
+            {
+                if (!rb_persist.get_region(mem_region)) // claim new region for persistence
+                {
+                    continue;
+                }
+            }
+
+            msync(mem_region, fileSize, MS_SYNC); //want to change this to MS_SYNC
+            rb_write.give_region(mem_region); // give back region for writing
+
+            mem_region = nullptr;
+
+        }
+
+
+        if (mem_region != nullptr){
+            msync(mem_region, fileSize, MS_SYNC);
+            rb_write.give_region(mem_region);
+        }
+
+        //sync remaining regions
+        while (rb_persist.get_region(mem_region))
+        {
+            rb_write.give_region(mem_region); //for easy closure later
+            msync(mem_region, fileSize, MS_SYNC);
+
+        }
+
+        //this should be handled while closing the ring buffers add something to close the file descriptors as well
+        munmap(mmapPtr, fileSize);
+        
+        auto tend = std::chrono::steady_clock::now();
+        persistenceDuration = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
+    }
+
+    
+
 
 }
 
@@ -219,10 +183,10 @@ int main(){
     }
     auto tp_start = std::chrono::steady_clock::now();
     int trade_count{1};
-    for(int i = 0; i < maxTradesPerFile * TradeRingBuffer::total_ring_buffer_count; i++){
+    for(int i = 0; i < TradeProcessor::maxTradesPerTP * TradeRingBuffer::total_ring_buffer_count; i++){
         matching_engine::Trade* t = new matching_engine::Trade();
         t->trade_id = trade_count++;
-        arr_trb[i / (maxTradesPerFile)]->add_trade(*t);
+        arr_trb[i / (TradeProcessor::maxTradesPerTP)]->add_trade(*t);
     }
     auto tp_end = std::chrono::steady_clock::now();
     std::cout << "To write: " << static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(tp_end - tp_start).count() )/ (1'000'000)<<" s\n";
@@ -234,8 +198,7 @@ int main(){
         writer_thread_pool.emplace_back( [&, i]{ arr_tp[i]->writerThread(); });
         persistence_thread_pool.emplace_back([&, i]{ arr_tp[i]->persistenceThread(); });
     }
-    // std::thread t4([&]{ tp.persistenceThread(); });
-    // std::thread t1([&]{ tp.reallocator();});
+
     marketOpen.store(false, std::memory_order_release);
     for (int i = 0; i < TradeRingBuffer::total_ring_buffer_count; i++)
     {
@@ -247,6 +210,6 @@ int main(){
     std::cout<<"Time taken: "<<std::chrono::duration_cast<std::chrono::microseconds>(tp2 - tp1).count()<<" mus\n";
     std::cout<<"Time spent in writer thread: "<<writerDuration<<" mus \n";
     std::cout<<"Time spent in persistence thread: "<<persistenceDuration<<" mus \n";
-    std::cout<<"Average time per trade: "<<static_cast<double>(persistenceDuration)/(maxTradesPerFile * TradeRingBuffer::total_ring_buffer_count)<<" mus\n";
+    std::cout<<"Average time per trade: "<<static_cast<double>(persistenceDuration)/(TradeProcessor::maxTradesPerTP * TradeRingBuffer::total_ring_buffer_count)<<" mus\n";
 
 }
