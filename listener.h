@@ -17,6 +17,13 @@
 
 #include "message.h"
 #include "spsc_queue.h"
+
+/*TODO:
+1) Verify the network models
+2) Receive data from UDP
+3) Create a buffer to receive dropped packets
+4) Currently querying packets is expensive
+*/
 namespace Client{
 
     constexpr size_t msg_per_packet = 23;

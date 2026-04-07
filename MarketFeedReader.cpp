@@ -26,7 +26,7 @@ std::string get_interface_ip(const std::string& iface_name)
     freeifaddrs(ifaddr);
     throw std::runtime_error("interface not found: " + iface_name);
 }
-MarketFeedReader::MarketFeedReader() : trb(false)
+MarketFeedReader::MarketFeedReader(int id) : trb(false, id)
 {
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -48,7 +48,33 @@ MarketFeedReader::MarketFeedReader() : trb(false)
         exit(EXIT_FAILURE);
     } // writes the binary address for the multicast group
 
-    setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, &local_ip, sizeof(local_ip)); // setting interface based on ip
+    sockfd_tcp = socket(AF_INET, SOCK_STREAM, 0); 
+    if (sockfd == -1) { 
+        perror("socket creation failed...\n"); 
+        exit(EXIT_FAILURE); 
+    }
+
+    servaddr.sin_family = AF_INET; 
+    servaddr.sin_addr.s_addr = inet_addr(""); // ethernet 
+    servaddr.sin_port = htons(tcp_port);
+    // Binding newly created socket to given IP and verification 
+    if ((bind(sockfd_tcp, (struct sockaddr*)&servaddr, sizeof(servaddr))) != 0) { 
+        perror("socket bind failed...\n"); 
+        exit(0); 
+    }
+    if ((listen(sockfd_tcp, 1)) != 0) { // for rt alone 
+        perror("Listen failed...\n"); 
+        exit(0); 
+    }
+    client_len = sizeof(client);
+    connect_ = accept(sockfd_tcp, (struct sockaddr*) &client, (unsigned int*)&client_len);
+    if (connect_ < 0)
+    {
+        perror("Error in connecting to retransmitter");
+        exit(EXIT_FAILURE);
+    }
+
+
 }
 
 void MarketFeedReader::init_batch(batch_t *b, int cap)
@@ -57,7 +83,8 @@ void MarketFeedReader::init_batch(batch_t *b, int cap)
     b->msgs = (struct mmsghdr *)calloc(cap, sizeof(struct mmsghdr)); // creates pointer to structs of mmsghdr
     b->iov = (struct iovec *)calloc(cap, sizeof(struct iovec));      // creates pointers to the iovec structs
     b->buffer = (char *)aligned_alloc(64, cap * MAX_MSG_SIZE);       // the actual memory buffer
-
+    b->tcp_buffer = (char *)aligned_alloc(64, cap * MAX_MSG_SIZE);
+    b->tcp_capacity = cap * MAX_MSG_SIZE;
     for (int i = 0; i < cap; i++)
     {
         b->iov[i].iov_base = b->buffer + i * MAX_MSG_SIZE; // setting the base ptr for the message in the buffer
@@ -99,6 +126,7 @@ void MarketFeedReader::sendThread()
     {
         int msg_count = 0;
 
+        int tcp_offset = 0;
         while (msg_count < batch->capacity)
         {
             char *ptr = (char *)batch->iov[msg_count].iov_base; // get message buffer
@@ -112,6 +140,8 @@ void MarketFeedReader::sendThread()
                     // std::cout << "stuck here \n";
                 } // spin until we get one, maybe back off a acouple of times and exit and send incomplete packet
                 memcpy(ptr + msgs_packed * sizeof(MarketDataMessage), &msg, sizeof(MarketDataMessage));
+                memcpy(batch->tcp_buffer + tcp_offset, &msg, sizeof(msg));
+                tcp_offset += sizeof(msg);
                 msgs_packed++;
             }
 
@@ -156,6 +186,23 @@ void MarketFeedReader::sendThread()
         }
         msgs_sent++;
         // std::cout << "msgs sent : " << msgs_sent << "\n";
+        // TCP send (contiguous buffer) 
+        size_t sent_total = 0;
+
+        while (sent_total < tcp_offset)
+        {
+            ssize_t n = send(connect_,
+                                batch->tcp_buffer + sent_total,
+                                tcp_offset - sent_total,
+                                MSG_NOSIGNAL);
+
+            if (n <= 0) {
+                perror("tcp send");
+                goto done_sending;
+            }
+
+            sent_total += n;
+        }
     }
     done_sending:
         std::cout << "exited sender \n";
@@ -184,7 +231,7 @@ matching_engine::Trade make_fake_trade(uint64_t i)
 }
 void pusher()
 {
-    TradeRingBuffer::trade_ring_buffer trb(true);
+    TradeRingBuffer::trade_ring_buffer trb(true, 0); // ISSUE
     matching_engine::Trade trade;
     for (int i = 0; i < 1'000'960; i++)
     {
@@ -195,7 +242,7 @@ void pusher()
 }
 #include <thread>
 int main(){
-    MarketFeedReader mfr;
+    MarketFeedReader mfr(0); // ISSUE
     std::thread push(pusher);
     push.join();
     auto tp = std::chrono::steady_clock::now();

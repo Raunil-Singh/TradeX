@@ -26,72 +26,109 @@ std::string get_interface_ip(const std::string& iface_name)
 Retransmitter::Retransmitter() : buffer(new MarketDataMessage[SIZE]), tcp_buffer(new char[1 << 8])
 {
     init_batch(&batch, 64);
-    sockfd_udp = socket(AF_INET, SOCK_DGRAM, 0); // UDP over IPV4
-    if (sockfd_udp < 0)
+    // sockfd_udp = socket(AF_INET, SOCK_DGRAM, 0); // UDP over IPV4
+    // if (sockfd_udp < 0)
+    // {
+    //     perror("Error in UDP socket creation in Retransmitter");
+    //     exit(EXIT_FAILURE);
+    // }
+
+    sockfd_tcp_recv = socket(AF_INET, SOCK_STREAM, 0); // TCP over IPV4
+    sockfd_tcp_send = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd_tcp_recv < 0)
     {
-        perror("Error in UDP socket creation in Retransmitter");
+        perror("Error in TCP socket creation in Retransmitter to MFR");
+        exit(EXIT_FAILURE);
+    }
+    sockfd_tcp_send = socket(AF_INET, SOCK_STREAM, 0); // TCP over IPV4
+    if (sockfd_tcp_recv < 0)
+    {
+        perror("Error in TCP socket creation in Retransmitter to Listener");
         exit(EXIT_FAILURE);
     }
 
-    sockfd_tcp = socket(AF_INET, SOCK_STREAM, 0); // TCP over IPV4
-    if (sockfd_tcp < 0)
-    {
-        perror("Error in UDP socket creation in Retransmitter");
-        exit(EXIT_FAILURE);
-    }
-    struct in_addr local_ip_udp, local_ip_tcp;
+    
 
-    // setting up listening on udp multicast
-    addr_udp.sin_port = htons(5000);
-    addr_udp.sin_family = AF_INET;
-    addr_udp.sin_addr.s_addr = INADDR_ANY; // why am i not listening to just ethernet?
-    if (bind(sockfd_udp, (sockaddr *)&addr_udp, sizeof(addr_udp)))
-    {
-        if (errno == EADDRINUSE)
-        {
-            // suggested: sleep/retry/fail, need guidance on which
-        }
-        perror("Issue in binding udp socket");
-        exit(EXIT_FAILURE);
-    }
+    // // setting up listening on udp multicast
+    // addr_udp.sin_port = htons(5000);
+    // addr_udp.sin_family = AF_INET;
+    // addr_udp.sin_addr.s_addr = INADDR_ANY; // why am i not listening to just ethernet?
+    // if (bind(sockfd_udp, (sockaddr *)&addr_udp, sizeof(addr_udp)))
+    // {
+    //     if (errno == EADDRINUSE)
+    //     {
+    //         // suggested: sleep/retry/fail, need guidance on which
+    //     }
+    //     perror("Issue in binding udp socket");
+    //     exit(EXIT_FAILURE);
+    // }
 
-    struct ip_mreq mreq;
-    mreq.imr_multiaddr.s_addr = inet_addr("239.1.1.1"); // subscribing to the multicast group
-    // std::string ip = get_interface_ip("en1"); //idk??
-    mreq.imr_interface.s_addr = inet_addr("10.50.59.247");  // over ethernet
-    if (inet_pton(AF_INET, "239.1.1.1", &mreq.imr_multiaddr) != 1)
-    {
-        perror("inet_pton multicast group");
-        exit(EXIT_FAILURE);
-    }
+    // struct ip_mreq mreq;
+    // mreq.imr_multiaddr.s_addr = inet_addr("239.1.1.1"); // subscribing to the multicast group
+    // // std::string ip = get_interface_ip("en1"); //idk??
+    // mreq.imr_interface.s_addr = inet_addr("10.50.59.247");  // over ethernet
+    // if (inet_pton(AF_INET, "239.1.1.1", &mreq.imr_multiaddr) != 1)
+    // {
+    //     perror("inet_pton multicast group");
+    //     exit(EXIT_FAILURE);
+    // }
 
-    if (inet_pton(AF_INET, "10.50.59.247", &mreq.imr_interface) != 1)
-    {
-        perror("inet_pton interface");
-        exit(EXIT_FAILURE);
-    }
-    if (setsockopt(sockfd_udp, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0)
-    {
-        perror("setsockopt failed while setting up membership to udp multicast");
-        exit(EXIT_FAILURE);
-    }
+    // if (inet_pton(AF_INET, "10.50.59.247", &mreq.imr_interface) != 1)
+    // {
+    //     perror("inet_pton interface");
+    //     exit(EXIT_FAILURE);
+    // }
+    // if (setsockopt(sockfd_udp, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0)
+    // {
+    //     perror("setsockopt failed while setting up membership to udp multicast");
+    //     exit(EXIT_FAILURE);
+    // }
 
-    // setting up tcp
+    // setting up tcp for client side usage (SERVER - MarketFeed)
     int opt = 1;
     int PORT = 8080;
-    setsockopt(sockfd_tcp, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    setsockopt(sockfd_tcp_recv, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     addr_tcp.sin_family = AF_INET;
-    addr_tcp.sin_addr.s_addr = INADDR_ANY;
+    addr_tcp.sin_addr.s_addr  = inet_addr(""); // put ethernet address here
     addr_tcp.sin_port = htons(PORT);
     addrlen_tcp = sizeof(addr_tcp);
-    if (bind(sockfd_tcp, (struct sockaddr *)&addr_tcp, sizeof(addr_tcp)) < 0)
+
+    int status = connect(sockfd_tcp_recv, (struct sockaddr*) &addr_tcp, addrlen_tcp);
+    if (status < 0)
     {
-        perror("bind failed for tcp socket");
+        perror("Error in connecting to MarketFeed");
         exit(EXIT_FAILURE);
     }
-    if (listen(sockfd_tcp, connection_backlog) < 0) // need to handle this error
+
+
+    int port  = 5000; 
+    setsockopt(sockfd_tcp_send, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    servaddr.sin_family = AF_INET; 
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);  // ISSUE change to ethernet
+    servaddr.sin_port = htons(port);
+    // if (bind(sockfd_tcp, (struct sockaddr *)&addr_tcp, sizeof(addr_tcp)) < 0)
+    // {
+    //     perror("bind failed for tcp socket");
+    //     exit(EXIT_FAILURE);
+    // }
+    // if (listen(sockfd_tcp, connection_backlog) < 0) // need to handle this error
+    // {
+    //     perror("listen");
+    //     exit(EXIT_FAILURE);
+    // }
+    if ((bind(sockfd_tcp_send, (struct sockaddr*)&servaddr, sizeof(servaddr))) != 0) { 
+        perror("socket bind failed...\n"); 
+        exit(0); 
+    }
+    if ((listen(sockfd_tcp_send, 1)) != 0) { // for rt alone 
+        perror("Listen failed...\n"); 
+        exit(0); 
+    }
+    client_len = sizeof(client);
+    connect_ = accept(sockfd_tcp_send, (struct sockaddr*) &client, (unsigned int*)&client_len);
+    if (connect_ < 0)
     {
-        perror("listen");
+        perror("Error in connecting to retransmitter");
         exit(EXIT_FAILURE);
     }
 }
@@ -101,7 +138,7 @@ void Retransmitter::storeThread()
     int trades{};
     while (trades < 1'000'960) // global synchronization flag
     {
-        int ret = recvmmsg(sockfd_udp, batch.msgs, 64, MSG_DONTWAIT, NULL); // non-blocking batch receive
+        int ret = recvmmsg(sockfd_tcp_recv, batch.msgs, 64, MSG_DONTWAIT, NULL); // non-blocking batch receive
         if (ret < 0)
         {
             if (errno == EAGAIN || errno == EINTR)
@@ -133,7 +170,7 @@ void Retransmitter::listenerThread()
 {
     while (!done.load(std::memory_order_acquire))
     {
-        int new_socket = accept(sockfd_tcp, (struct sockaddr *)&addr_tcp, (socklen_t *)&addrlen_tcp);
+        int new_socket = accept(sockfd_tcp_send, (struct sockaddr *)&addr_tcp, (socklen_t *)&addrlen_tcp);
         if (new_socket < 0)
         {
             if (errno == EINTR)

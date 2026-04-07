@@ -1,9 +1,10 @@
-
+#ifndef SPSC_QUEUE
+#define SPSC_QUEUE
 
 #include <atomic>
 
-
-
+#include "trade.h"
+#include "message.h"
 
 // api file only
 
@@ -14,14 +15,16 @@ class spsc_queue
 private:
     alignas(64) std::atomic_uint64_t head;
     alignas(64) std::atomic_uint64_t tail;
-    uint64_t *array;
+    MarketDataMessage *array;
 
 public:
-    spsc_queue() : array(new uint64_t[queue_buffer_size]), head(0), tail(0) {}
-    bool push(uint64_t &&);
-    bool pop(uint64_t &);
+    spsc_queue() : array(new MarketDataMessage[queue_buffer_size]), head(0), tail(0) {}
+    bool push(MarketDataMessage &&);
+    bool pop(MarketDataMessage &);
     bool empty()
     {
         return head.load(std::memory_order_acquire) == tail.load(std::memory_order_acquire);
     }
 };
+
+#endif

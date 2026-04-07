@@ -18,6 +18,10 @@
 #include "message.h"
 #include "spsc_queue.h"
 
+/*TODO:
+1) Write the tcp receiver from mfr on this side
+2) Validate that the server client model is correct on this side
+3) Handle dropped packets by sending the entire 23 messages. Put a mutex on it?*/
 
 typedef struct {
     struct mmsghdr *msgs;
@@ -35,8 +39,12 @@ class Retransmitter{
         spsc_queue queue;
         MarketDataMessage *buffer;
         int sockfd_udp;
-        int sockfd_tcp;
+        int sockfd_tcp_recv;
+        int sockfd_tcp_send;
         struct sockaddr_in addr_udp, addr_tcp;
+        struct sockaddr_in servaddr, client;
+        int client_len;
+        int connect_;
         int addrlen_tcp;
         batch_t batch;
         char *tcp_buffer; //should be size of sequence number
