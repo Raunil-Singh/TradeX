@@ -167,7 +167,7 @@ public:
                     .symbol_id = order.symbol_id,
                     .quantity = order.quantity
                 });
-                shared_ltp_ptr->last_price[order.symbol_id & SYMBOL_MASK] = order.price;
+                shared_ltp_ptr->last_price[order.symbol_id & SYMBOL_MASK] = best_price;
 
                 uint32_t new_quantity = book.getpricelevels(price_index).gethead()->order.quantity - order.quantity;
                 book.modifyQuantity(best_price, new_quantity);
@@ -184,7 +184,7 @@ public:
                     .symbol_id = order.symbol_id,
                     .quantity = traded_quantity
                 });
-                shared_ltp_ptr->last_price[order.symbol_id & SYMBOL_MASK] = order.price;
+                shared_ltp_ptr->last_price[order.symbol_id & SYMBOL_MASK] = best_price;
                 
                 order.quantity -= traded_quantity;
                 book.removeSellOrder(best_price);
@@ -220,7 +220,7 @@ public:
                     .symbol_id = order.symbol_id,
                     .quantity = order.quantity
                 });
-                shared_ltp_ptr->last_price[order.symbol_id & SYMBOL_MASK] = order.price;
+                shared_ltp_ptr->last_price[order.symbol_id & SYMBOL_MASK] = best_price;
             
                 uint32_t new_quantity = book.getpricelevels(price_index).gethead()->order.quantity - order.quantity;
                 book.modifyQuantity(best_price, new_quantity);
@@ -237,7 +237,7 @@ public:
                     .symbol_id = order.symbol_id,
                     .quantity = traded_quantity
                 });
-                shared_ltp_ptr->last_price[order.symbol_id & SYMBOL_MASK] = order.price;
+                shared_ltp_ptr->last_price[order.symbol_id & SYMBOL_MASK] = best_price;
                 
                 order.quantity -= traded_quantity;
                 book.removeBuyOrder(best_price);
@@ -268,8 +268,8 @@ private:
     std::atomic<bool> terminate_flag{false};
     std::atomic<bool> is_running_flag{false};
     shared_data::MarketState* shared_ltp_ptr;
-    uint64_t lower_limits_cache[MAX_SYMBOLS];
-    uint64_t upper_limits_cache[MAX_SYMBOLS];
+    uint64_t lower_limits_cache[TOTAL_SYMBOLS];
+    uint64_t upper_limits_cache[TOTAL_SYMBOLS];
     int shm_fd;
 
 public:
@@ -340,16 +340,20 @@ public:
     // This can be extended to support dynamic addition of order books as well.
     void initialize_engine(uint64_t* lower_limits, uint64_t* upper_limits)
     {
-        for (uint32_t symbol_id = 0; symbol_id < MAX_SYMBOLS; symbol_id++) {
+        for (uint32_t symbol_id = 0; symbol_id < TOTAL_SYMBOLS; symbol_id++) {
             lower_limits_cache[symbol_id] = lower_limits[symbol_id];
             upper_limits_cache[symbol_id] = upper_limits[symbol_id];
         }
 
+        int i = 0;
         for(auto &group : groups) {
             auto book_manager = group->setup_book_manager();
+            //std::cout<<"Group "<<i<<"started\n";
+            int overhead = i << SYMBOL_BITS;
             for(uint32_t symbol_id = 0; symbol_id < MAX_SYMBOLS; symbol_id++) {
-                book_manager->addBook(symbol_id, 10000, lower_limits[symbol_id], upper_limits[symbol_id]);
+                book_manager->addBook(symbol_id, 10000, lower_limits[overhead+symbol_id], upper_limits[overhead+symbol_id]);
             }
+            i++;
         }
     }
 

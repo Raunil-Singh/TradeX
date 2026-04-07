@@ -115,7 +115,7 @@ void OrderManagementSystem::listenForClientOrder() {
                     std::cerr << "Invalid LIMIT order: price = 0\n";
                     continue;
                 }
-                //std::cout<<"OMS recieved limit order"<<new_order.client_order_id<<"\n";
+                std::cout<<"OMS recieved limit order"<<new_order.client_order_id<<"\n";
                 out.execution_type = matching_engine::OrderExecutionType::LIMIT;
                 out.order_id = new_order.client_order_id;
                 out.quantity = new_order.quantity;

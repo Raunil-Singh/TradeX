@@ -9,9 +9,13 @@ int main() {
 
     matching_engine::MatchingEngineDispatcher engine(1024);
     
-    uint64_t lower[MAX_SYMBOLS] = {0};
-    uint64_t upper[MAX_SYMBOLS] = {0};
+    uint64_t lower[TOTAL_SYMBOLS] = {0};
+    uint64_t upper[TOTAL_SYMBOLS] = {0};
     std::vector<SymbolInfo> symbol_data = loadSymbolCSV("data/symbols.csv");
+    if (symbol_data.empty()) {
+        std::cerr << "ERROR: CSV not found at data/symbols.csv! Current path: ";
+        return 1;
+    }
     for (const auto& s : symbol_data) {
         lower[s.symbol_id] = s.lower_limit;
         upper[s.symbol_id] = s.upper_limit;
@@ -26,124 +30,171 @@ int main() {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    //limit test
-    // oms::ClientOrder test_order1;
-    // test_order1.client_order_id = 101;
-    // test_order1.price = 15000; // 150.00
-    // test_order1.quantity = 10;
-    // test_order1.type = matching_engine::OrderType::BUY;
-    // test_order1.execution_type = oms::ClientOrderType::LIMIT;
-    // strcpy(test_order1.symbol, "AAPL");
+   // ---------- Basic resting liquidity ----------
+oms::ClientOrder sell_book1{};
+sell_book1.price = 10000;
+sell_book1.quantity = 100;
+sell_book1.type = matching_engine::OrderType::SELL;
+sell_book1.execution_type = oms::ClientOrderType::LIMIT;
+strcpy(sell_book1.symbol, "AAPL");
 
-    // oms::ClientOrder test_order2;
-    // test_order2.client_order_id = 102;
-    // test_order2.price = 15000; // 150.00
-    // test_order2.quantity = 10;
-    // test_order2.type = matching_engine::OrderType::SELL;
-    // test_order2.execution_type = oms::ClientOrderType::LIMIT;
-    // strcpy(test_order2.symbol, "AAPL");
+oms::ClientOrder sell_book2{};
+sell_book2.price = 10100;
+sell_book2.quantity = 200;
+sell_book2.type = matching_engine::OrderType::SELL;
+sell_book2.execution_type = oms::ClientOrderType::LIMIT;
+strcpy(sell_book2.symbol, "AAPL");
 
-    //market test
-    // oms::ClientOrder test_order1;
-    // test_order1.client_order_id = 101;
-    // test_order1.price = 15000; // 150.00
-    // test_order1.quantity = 10;
-    // test_order1.type = matching_engine::OrderType::BUY;
-    // test_order1.execution_type = oms::ClientOrderType::LIMIT;
-    // strcpy(test_order1.symbol, "AAPL");
+oms::ClientOrder buy_book1{};
+buy_book1.price = 9800;
+buy_book1.quantity = 150;
+buy_book1.type = matching_engine::OrderType::BUY;
+buy_book1.execution_type = oms::ClientOrderType::LIMIT;
+strcpy(buy_book1.symbol, "AAPL");
 
-    // oms::ClientOrder test_order2;
-    // test_order2.client_order_id = 102;
-    // test_order2.quantity = 10;
-    // test_order2.type = matching_engine::OrderType::SELL;
-    // test_order2.execution_type = oms::ClientOrderType::MARKET;
-    // strcpy(test_order2.symbol, "AAPL");
+// ---------- Exact limit match ----------
+oms::ClientOrder limit_buy_match{};
+limit_buy_match.price = 10000;
+limit_buy_match.quantity = 50;
+limit_buy_match.type = matching_engine::OrderType::BUY;
+limit_buy_match.execution_type = oms::ClientOrderType::LIMIT;
+strcpy(limit_buy_match.symbol, "AAPL");
 
-    //stop loss test
-    oms::ClientOrder buy_resting{};
-    buy_resting.client_order_id = 101;
-    buy_resting.price = 10000;
-    buy_resting.type = matching_engine::OrderType::BUY;
-    buy_resting.quantity = 100;
-    buy_resting.execution_type = oms::ClientOrderType::LIMIT;
-    strcpy(buy_resting.symbol, "AAPL");
+// ---------- Partial fill ----------
+oms::ClientOrder partial_buy{};
+partial_buy.price = 10100;
+partial_buy.quantity = 250; // fills 100 + leaves 150
+partial_buy.type = matching_engine::OrderType::BUY;
+partial_buy.execution_type = oms::ClientOrderType::LIMIT;
+strcpy(partial_buy.symbol, "AAPL");
 
-    oms::ClientOrder sell_resting{};
-    sell_resting.client_order_id = 102;
-    sell_resting.price = 10000;
-    sell_resting.type = matching_engine::OrderType::SELL;
-    sell_resting.quantity = 100;
-    sell_resting.execution_type = oms::ClientOrderType::LIMIT;
-    strcpy(sell_resting.symbol, "AAPL");
+// ---------- Market order tests ----------
+oms::ClientOrder market_buy{};
+market_buy.quantity = 75;
+market_buy.type = matching_engine::OrderType::BUY;
+market_buy.execution_type = oms::ClientOrderType::MARKET;
+strcpy(market_buy.symbol, "AAPL");
 
-    oms::ClientOrder sell_resting2{};
-    sell_resting2.client_order_id = 102;
-    sell_resting2.price = 10000;
-    sell_resting2.type = matching_engine::OrderType::SELL;
-    sell_resting2.quantity = 100;
-    sell_resting2.execution_type = oms::ClientOrderType::LIMIT;
-    strcpy(sell_resting2.symbol, "AAPL");
+oms::ClientOrder market_sell{};
+market_sell.quantity = 60;
+market_sell.type = matching_engine::OrderType::SELL;
+market_sell.execution_type = oms::ClientOrderType::MARKET;
+strcpy(market_sell.symbol, "AAPL");
 
-    oms::ClientOrder stop_loss{};
-    stop_loss.client_order_id = 103;
-    stop_loss.price = 9400;
-    stop_loss.trigger_price = 9500;
-    stop_loss.type = matching_engine::OrderType::BUY;
-    stop_loss.quantity = 50;
-    stop_loss.execution_type = oms::ClientOrderType::STOP_LOSS;
-    strcpy(stop_loss.symbol, "AAPL");
+// ---------- Far-away unmatched order ----------
+oms::ClientOrder unmatched_buy{};
+unmatched_buy.price = 5000;
+unmatched_buy.quantity = 100;
+unmatched_buy.type = matching_engine::OrderType::BUY;
+unmatched_buy.execution_type = oms::ClientOrderType::LIMIT;
+strcpy(unmatched_buy.symbol, "AAPL");
 
-    oms::ClientOrder trigger_buy{};
-    trigger_buy.client_order_id = 104;
-    trigger_buy.price = 9500;
-    trigger_buy.type = matching_engine::OrderType::BUY;
-    trigger_buy.quantity = 100;
-    trigger_buy.execution_type = oms::ClientOrderType::LIMIT;
-    strcpy(trigger_buy.symbol, "AAPL");
+// ---------- Stop-loss SELL trigger ----------
+// Buy immediately at market, then place SELL if LTP <= 9500
+oms::ClientOrder stop_loss_sell{};
+stop_loss_sell.price = 9400;
+stop_loss_sell.trigger_price = 9500;
+stop_loss_sell.quantity = 40;
+stop_loss_sell.type = matching_engine::OrderType::BUY;
+stop_loss_sell.execution_type = oms::ClientOrderType::STOP_LOSS;
+strcpy(stop_loss_sell.symbol, "AAPL");
 
-    oms::ClientOrder trigger_sell{};
-    trigger_sell.client_order_id = 105;
-    trigger_sell.price = 9500;
-    trigger_sell.type = matching_engine::OrderType::SELL;
-    trigger_sell.quantity = 100;
-    trigger_sell.execution_type = oms::ClientOrderType::LIMIT;
-    strcpy(trigger_sell.symbol, "AAPL");
+// ---------- Stop-loss BUY trigger ----------
+// Sell immediately at market, then place BUY if LTP >= 10300
+oms::ClientOrder stop_loss_buy{};
+stop_loss_buy.price = 10400;
+stop_loss_buy.trigger_price = 10300;
+stop_loss_buy.quantity = 50;
+stop_loss_buy.type = matching_engine::OrderType::SELL;
+stop_loss_buy.execution_type = oms::ClientOrderType::STOP_LOSS;
+strcpy(stop_loss_buy.symbol, "AAPL");
 
-    oms::ClientOrder trigger_buy2{};
-    trigger_buy2.client_order_id = 104;
-    trigger_buy2.price = 9400;
-    trigger_buy2.type = matching_engine::OrderType::BUY;
-    trigger_buy2.quantity = 100;
-    trigger_buy2.execution_type = oms::ClientOrderType::LIMIT;
-    strcpy(trigger_buy2.symbol, "AAPL");
+// ---------- Trigger LTP downward to exactly 9500 ----------
+oms::ClientOrder ltp_down_buy{};
+ltp_down_buy.price = 9500;
+ltp_down_buy.quantity = 100;
+ltp_down_buy.type = matching_engine::OrderType::BUY;
+ltp_down_buy.execution_type = oms::ClientOrderType::LIMIT;
+strcpy(ltp_down_buy.symbol, "AAPL");
 
-    //ice berg
-    // oms::ClientOrder buy_resting{};
-    // buy_resting.client_order_id = 101;
-    // buy_resting.price = 10000;
-    // buy_resting.type = matching_engine::OrderType::BUY;
-    // buy_resting.quantity = 200;
-    // buy_resting.execution_type = oms::ClientOrderType::LIMIT;
-    // strcpy(buy_resting.symbol, "AAPL");
+oms::ClientOrder ltp_down_sell{};
+ltp_down_sell.price = 9500;
+ltp_down_sell.quantity = 100;
+ltp_down_sell.type = matching_engine::OrderType::SELL;
+ltp_down_sell.execution_type = oms::ClientOrderType::LIMIT;
+strcpy(ltp_down_sell.symbol, "AAPL");
 
-    // oms::ClientOrder sell_resting{};
-    // sell_resting.client_order_id = 102;
-    // sell_resting.is_active = true;
-    // sell_resting.price = 10000;
-    // sell_resting.type = matching_engine::OrderType::SELL;
-    // sell_resting.quantity = 200;
-    // sell_resting.display_quantity = 50;
-    // sell_resting.execution_type = oms::ClientOrderType::ICEBERG;
-    // strcpy(sell_resting.symbol, "AAPL");
+// ---------- Trigger LTP upward to exactly 10300 ----------
+oms::ClientOrder ltp_up_buy{};
+ltp_up_buy.price = 10300;
+ltp_up_buy.quantity = 100;
+ltp_up_buy.type = matching_engine::OrderType::BUY;
+ltp_up_buy.execution_type = oms::ClientOrderType::LIMIT;
+strcpy(ltp_up_buy.symbol, "AAPL");
 
-    //std::cout << "Dispatching test order for AAPL..." << std::endl;
-    while(!oms_system.enqueueClientOrder(buy_resting)) {}
-    while(!oms_system.enqueueClientOrder(sell_resting)) {}
-    while(!oms_system.enqueueClientOrder(sell_resting2)) {}
-    while(!oms_system.enqueueClientOrder(stop_loss)) {}
-    while(!oms_system.enqueueClientOrder(trigger_buy)) {}
-    while(!oms_system.enqueueClientOrder(trigger_sell)) {}
-    while(!oms_system.enqueueClientOrder(trigger_buy2)) {}
+oms::ClientOrder ltp_up_sell{};
+ltp_up_sell.price = 10300;
+ltp_up_sell.quantity = 100;
+ltp_up_sell.type = matching_engine::OrderType::SELL;
+ltp_up_sell.execution_type = oms::ClientOrderType::LIMIT;
+strcpy(ltp_up_sell.symbol, "AAPL");
+
+// ---------- Iceberg SELL ----------
+oms::ClientOrder iceberg_sell{};
+iceberg_sell.is_active = true;
+iceberg_sell.price = 10200;
+iceberg_sell.quantity = 240;
+iceberg_sell.display_quantity = 60;
+iceberg_sell.type = matching_engine::OrderType::SELL;
+iceberg_sell.execution_type = oms::ClientOrderType::ICEBERG;
+strcpy(iceberg_sell.symbol, "AAPL");
+
+// Buyer that consumes all iceberg slices
+oms::ClientOrder iceberg_consumer{};
+iceberg_consumer.price = 10200;
+iceberg_consumer.quantity = 240;
+iceberg_consumer.type = matching_engine::OrderType::BUY;
+iceberg_consumer.execution_type = oms::ClientOrderType::LIMIT;
+strcpy(iceberg_consumer.symbol, "AAPL");
+
+// ---------- Queue orders in sequence ----------
+while(!oms_system.enqueueClientOrder(sell_book1)) {}
+while(!oms_system.enqueueClientOrder(sell_book2)) {}
+while(!oms_system.enqueueClientOrder(buy_book1)) {}
+
+std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+while(!oms_system.enqueueClientOrder(limit_buy_match)) {}
+while(!oms_system.enqueueClientOrder(partial_buy)) {}
+while(!oms_system.enqueueClientOrder(market_buy)) {}
+
+std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+while(!oms_system.enqueueClientOrder(market_sell)) {}
+while(!oms_system.enqueueClientOrder(unmatched_buy)) {}
+
+std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+while(!oms_system.enqueueClientOrder(stop_loss_sell)) {}
+while(!oms_system.enqueueClientOrder(stop_loss_buy)) {}
+
+std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+while(!oms_system.enqueueClientOrder(ltp_down_buy)) {}
+while(!oms_system.enqueueClientOrder(ltp_down_sell)) {}
+
+std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+while(!oms_system.enqueueClientOrder(ltp_up_buy)) {}
+while(!oms_system.enqueueClientOrder(ltp_up_sell)) {}
+
+std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+while(!oms_system.enqueueClientOrder(iceberg_sell)) {}
+std::this_thread::sleep_for(std::chrono::milliseconds(50));
+while(!oms_system.enqueueClientOrder(iceberg_consumer)) {}
+
+std::this_thread::sleep_for(std::chrono::seconds(2));
     
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -153,6 +204,6 @@ int main() {
     oms_system.stop();
     if(engine_thread.joinable()) engine_thread.join();
 
-    saveEndOfDayCSV("symbols.csv", oms_system.shared_memory_ptr, symbol_data);
+    saveEndOfDayCSV("data/symbols.csv", oms_system.shared_memory_ptr, symbol_data);
     return 0;
 }

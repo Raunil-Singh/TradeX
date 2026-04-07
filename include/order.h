@@ -12,7 +12,10 @@ namespace matching_engine{
 constexpr uint32_t NULL_IDX = UINT32_MAX;
 #define SYMBOL_BITS 10
 constexpr uint32_t SYMBOL_MASK = (1 << SYMBOL_BITS) - 1; // Mask for lower 10 bits
-#define MAX_SYMBOLS 1<<SYMBOL_BITS
+#define MAX_SYMBOLS (1<<SYMBOL_BITS)
+#define GROUP_COUNT 2
+#define TOTAL_SYMBOLS (MAX_SYMBOLS*GROUP_COUNT)
+
 
 enum class OrderType {
     BUY,
