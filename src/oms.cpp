@@ -13,7 +13,7 @@ OrderManagementSystem::OrderManagementSystem(matching_engine::MatchingEngineDisp
     if (shm_fd != -1) {
         shared_memory_ptr = (shared_data::MarketState*)mmap(NULL, sizeof(shared_data::MarketState), PROT_READ, MAP_SHARED, shm_fd, 0);
     }
-    for(int i = 0; i < NUM_GROUPS; i++) {
+    for(int i = 0; i < GROUP_COUNT; i++) {
         trade_consumers.push_back(new TradeRingBuffer::trade_ring_buffer(false, i));
     }
     uint64_t boot_timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
@@ -115,7 +115,7 @@ void OrderManagementSystem::listenForClientOrder() {
                     std::cerr << "Invalid LIMIT order: price = 0\n";
                     continue;
                 }
-                std::cout<<"OMS recieved limit order"<<new_order.client_order_id<<"\n";
+                //std::cout<<"OMS recieved limit order"<<new_order.client_order_id<<"\n";
                 out.execution_type = matching_engine::OrderExecutionType::LIMIT;
                 out.order_id = new_order.client_order_id;
                 out.quantity = new_order.quantity;
@@ -128,7 +128,7 @@ void OrderManagementSystem::listenForClientOrder() {
             }
         }
 
-        for (int i = 0; i < NUM_GROUPS; i++) {
+        for (int i = 0; i < GROUP_COUNT; i++) {
             while (trade_consumers[i]->any_new_trade()) {
                 matching_engine::Trade t = trade_consumers[i]->get_trade();
                 check_fill(t);
@@ -289,7 +289,7 @@ void OrderManagementSystem::send_slice(uint64_t parent_id) {
     child_order.trader_id = parent.trader_id;
               
     engine->dispatch_order(child_order);
-    std::cout<<"One slice sent\n";
+    //std::cout<<"One slice sent\n";
 }
 
 void OrderManagementSystem::check_fill(const matching_engine::Trade& trade) {

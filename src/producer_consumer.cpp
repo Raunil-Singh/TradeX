@@ -12,8 +12,6 @@
 
 namespace matching_engine {
 
-    constexpr int group_count = 2;
-
 
 struct alignas(64) PaddedAtomic {
     std::atomic<uint64_t> value;
@@ -282,8 +280,8 @@ public:
             
         for(int i = 0; i<MAX_SYMBOLS; i++) shared_ltp_ptr->last_price[i] = 0;
 
-        groups.reserve(group_count);
-        for(int i=0; i<group_count; i++) {
+        groups.reserve(GROUP_COUNT);
+        for(int i=0; i<GROUP_COUNT; i++) {
             groups.emplace_back(std::make_unique<GroupProcessor>(i, capacity, shared_ltp_ptr));
             
         }
@@ -311,7 +309,7 @@ public:
     // Used for placing orders
     void dispatch_order(const Order& order) {
 
-        int group = (order.symbol_id >> SYMBOL_BITS) % group_count;
+        int group = (order.symbol_id >> SYMBOL_BITS) % GROUP_COUNT;
         if(group >= groups.size()) group = 0;
         //printf("Order %ld recieved\n",order.order_id);
         while(!groups[group]->enqueue_order(order));
@@ -322,7 +320,7 @@ public:
         std::thread dispatcher_thread(&MatchingEngineDispatcher::start_dispatcher, this);
 
         std::vector<std::thread> group_threads;
-        for (int i = 0; i < group_count; ++i) {
+        for (int i = 0; i < GROUP_COUNT; ++i) {
             group_threads.emplace_back(&GroupProcessor::start_group_thread, groups[i].get(), i);
         }
 

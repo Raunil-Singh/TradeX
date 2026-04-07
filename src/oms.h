@@ -85,7 +85,6 @@ private:
 
     matching_engine::MatchingEngineDispatcher* engine;
     std::vector<TradeRingBuffer::trade_ring_buffer*> trade_consumers;
-    const int NUM_GROUPS = matching_engine::group_count;
 
     std::thread oms_thread;
 
