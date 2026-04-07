@@ -1,2 +1,4 @@
 .vscode*
 *.dSYM/*
+file_output/*
+data/*
