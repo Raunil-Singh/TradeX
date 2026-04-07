@@ -1,6 +1,6 @@
 #include "spsc_queue.h"
 
-bool spsc_queue::push(MarketDataMessage&& msg)
+bool spsc_queue::push(uint64_t&& msg)
 {
     uint64_t _head = head.load(std::memory_order_acquire);
     uint64_t _tail = tail.load(std::memory_order_relaxed);
@@ -15,7 +15,7 @@ bool spsc_queue::push(MarketDataMessage&& msg)
     return false;
 }
 
-bool spsc_queue::pop(MarketDataMessage& out_msg)
+bool spsc_queue::pop(uint64_t& out_msg)
 {
     uint64_t _head = head.load(std::memory_order_relaxed);
     uint64_t _tail = tail.load(std::memory_order_acquire);
