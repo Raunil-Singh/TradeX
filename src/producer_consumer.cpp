@@ -358,11 +358,11 @@ public:
     }
 
     uint64_t getUpperLimit(uint32_t symbol_id) const {
-        return upper_limits_cache[symbol_id & SYMBOL_MASK];
+        return upper_limits_cache[symbol_id];
     }
 
     uint64_t getLowerLimit(uint32_t symbol_id) const {
-        return lower_limits_cache[symbol_id & SYMBOL_MASK];
+        return lower_limits_cache[symbol_id];
     }
 
     ~MatchingEngineDispatcher() {
