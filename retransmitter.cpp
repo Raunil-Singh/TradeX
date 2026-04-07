@@ -6,26 +6,26 @@
 3) Find a better way to handle all setup errors*/
 
 std::atomic_bool done{false};
-std::string get_interface_ip(const std::string& iface_name)
+// std::string get_interface_ip(const std::string& iface_name)
+// {
+//     struct ifaddrs* ifaddr;
+//     getifaddrs(&ifaddr);f
+//     for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
+//     {
+//         if (ifa->ifa_addr->sa_family == AF_INET && iface_name == ifa->ifa_name)
+//         {
+//             char buf[INET_ADDRSTRLEN];
+//             inet_ntop(AF_INET, &((struct sockaddr_in*)ifa->ifa_addr)->sin_addr, buf, sizeof(buf));
+//             freeifaddrs(ifaddr);
+//             return std::string(buf);
+//         }
+//     }
+//     freeifaddrs(ifaddr);
+//     throw std::runtime_error("interface not found: " + iface_name);
+// }
+Retransmitter::Retransmitter(std::atomic_bool& flag ) : flag(flag), buffer(new MarketDataMessage[SIZE]), tcp_buffer(new char[1 << 8])
 {
-    struct ifaddrs* ifaddr;
-    getifaddrs(&ifaddr);
-    for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
-    {
-        if (ifa->ifa_addr->sa_family == AF_INET && iface_name == ifa->ifa_name)
-        {
-            char buf[INET_ADDRSTRLEN];
-            inet_ntop(AF_INET, &((struct sockaddr_in*)ifa->ifa_addr)->sin_addr, buf, sizeof(buf));
-            freeifaddrs(ifaddr);
-            return std::string(buf);
-        }
-    }
-    freeifaddrs(ifaddr);
-    throw std::runtime_error("interface not found: " + iface_name);
-}
-Retransmitter::Retransmitter() : buffer(new MarketDataMessage[SIZE]), tcp_buffer(new char[1 << 8])
-{
-    init_batch(&batch, 64);
+    init_batch(64);
     // sockfd_udp = socket(AF_INET, SOCK_DGRAM, 0); // UDP over IPV4
     // if (sockfd_udp < 0)
     // {
@@ -34,14 +34,13 @@ Retransmitter::Retransmitter() : buffer(new MarketDataMessage[SIZE]), tcp_buffer
     // }
 
     sockfd_tcp_recv = socket(AF_INET, SOCK_STREAM, 0); // TCP over IPV4
-    sockfd_tcp_send = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd_tcp_recv < 0)
     {
         perror("Error in TCP socket creation in Retransmitter to MFR");
         exit(EXIT_FAILURE);
     }
     sockfd_tcp_send = socket(AF_INET, SOCK_STREAM, 0); // TCP over IPV4
-    if (sockfd_tcp_recv < 0)
+    if (sockfd_tcp_send < 0)
     {
         perror("Error in TCP socket creation in Retransmitter to Listener");
         exit(EXIT_FAILURE);
@@ -86,10 +85,9 @@ Retransmitter::Retransmitter() : buffer(new MarketDataMessage[SIZE]), tcp_buffer
 
     // setting up tcp for client side usage (SERVER - MarketFeed)
     int opt = 1;
-    int PORT = 8080;
-    setsockopt(sockfd_tcp_recv, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    int PORT = 8000;
     addr_tcp.sin_family = AF_INET;
-    addr_tcp.sin_addr.s_addr  = inet_addr(""); // put ethernet address here
+    addr_tcp.sin_addr.s_addr  = inet_addr("127.0.0.1"); // put ethernet address here
     addr_tcp.sin_port = htons(PORT);
     addrlen_tcp = sizeof(addr_tcp);
 
@@ -101,7 +99,7 @@ Retransmitter::Retransmitter() : buffer(new MarketDataMessage[SIZE]), tcp_buffer
     }
 
 
-    int port  = 5000; 
+    int port  = 8080; 
     setsockopt(sockfd_tcp_send, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     servaddr.sin_family = AF_INET; 
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);  // ISSUE change to ethernet
@@ -124,140 +122,170 @@ Retransmitter::Retransmitter() : buffer(new MarketDataMessage[SIZE]), tcp_buffer
         perror("Listen failed...\n"); 
         exit(0); 
     }
-    client_len = sizeof(client);
-    connect_ = accept(sockfd_tcp_send, (struct sockaddr*) &client, (unsigned int*)&client_len);
-    if (connect_ < 0)
-    {
-        perror("Error in connecting to retransmitter");
-        exit(EXIT_FAILURE);
-    }
+    // client_len = sizeof(client);
+    // connect_ = accept(sockfd_tcp_send, (struct sockaddr*) &client, &client_len);
+    // if (connect_ < 0)
+    // {
+    //     perror("Error in connecting to retransmitter");
+    //     exit(EXIT_FAILURE);
+    // }
 }
 
 void Retransmitter::storeThread()
 {
     int trades{};
-    while (trades < 1'000'960) // global synchronization flag
-    {
-        int ret = recvmmsg(sockfd_tcp_recv, batch.msgs, 64, MSG_DONTWAIT, NULL); // non-blocking batch receive
-        if (ret < 0)
-        {
-            if (errno == EAGAIN || errno == EINTR)
-                continue;
+    size_t buffered = 0; 
+    const size_t max_buffer_size = batch.capacity * MAX_MSG_SIZE;
 
-            perror("recvmmsg");
-            continue;
+    while (true) 
+    {
+        // 1. Receive data into the remaining space in the buffer
+        int ret = recv(sockfd_tcp_recv, 
+                    batch.tcp_buffer + buffered, 
+                    max_buffer_size - buffered, 
+                    MSG_DONTWAIT);
+
+        if (ret < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+                // Optional: Put thread to sleep briefly, or use epoll to avoid burning CPU
+                continue; 
+            }
+            perror("recv failed");
+            break; // Handle fatal error (e.g., reconnect)
+        } 
+        else if (ret == 0) {
+            std::cout << "Peer disconnected gracefully.\n";
+            break; 
+        }
+
+        buffered += ret;
+        size_t offset = 0;
+
+        // 2. Parse as many complete messages as we have
+        while (buffered - offset >= sizeof(MarketDataMessage)) 
+        {
+            auto* msg = (MarketDataMessage*) (batch.tcp_buffer + offset);
+            
+            // CRITICAL: Ensure `q` is copying the message BY VALUE, not just storing the pointer!
+            // If q stores pointers, you must copy the data to a new struct/buffer here.
+            std::memcpy(&buffer[msg->seq_num & SIZE - 1], msg, sizeof(MarketDataMessage)); 
+            
+            offset += sizeof(MarketDataMessage);
+            trades++;
+        }
+
+        // 3. Shift any leftover partial message to the front of the buffer
+        size_t leftover = buffered - offset;
+        if (leftover > 0 && offset > 0) {
+            std::memmove(batch.tcp_buffer, batch.tcp_buffer + offset, leftover);
         }
         
-        for (int i = 0; i < ret; i++)
-        {
+        // Update buffered to reflect only the leftover bytes
+        buffered = leftover; 
 
-            // parsing logic feels fragile
-            char *p_msg = (char *)batch.iov[i].iov_base;
-            for (int count = 0; count < (batch.iov[i].iov_len / sizeof(MarketDataMessage)); count++)
-            {
-                MarketDataMessage *msg = reinterpret_cast<MarketDataMessage *>(p_msg); // trying to get the MarketDataMessage, why am i doing + 64???
-                std::memcpy(buffer + (msg->seq_num & (SIZE - 1)), msg, sizeof(*msg));
-                p_msg += sizeof(MarketDataMessage);
-                trades++;
-            }
-        }
-        std::cout << trades << "\n";
+        // std::cout << trades << "\n"; // Be careful with I/O in a hot loop
     }
     done.store(true, std::memory_order_release);
 }
 
+#include <vector>
+#include <poll.h>
+
 void Retransmitter::listenerThread()
 {
+    // 1. Setup the poll list. The first entry is the server listening socket.
+    std::vector<struct pollfd> poll_fds;
+    poll_fds.push_back({sockfd_tcp_send, POLLIN, 0});
+
+    std::cout << "[RT] Retransmit server active. Monitoring for requests...\n";
+
     while (!done.load(std::memory_order_acquire))
     {
-        int new_socket = accept(sockfd_tcp_send, (struct sockaddr *)&addr_tcp, (socklen_t *)&addrlen_tcp);
-        if (new_socket < 0)
-        {
-            if (errno == EINTR)
-            {
-                perror("acceptance error");
-                continue;
-            }
+        // 2. Wait for activity (100ms timeout to allow checking the 'done' flag)
+        int activity = poll(poll_fds.data(), poll_fds.size(), 100);
+
+        if (activity < 0) {
+            if (errno == EINTR) continue;
+            perror("poll error");
+            break;
         }
-        size_t t{};
-        while (t < 8)
+
+        if (activity == 0) continue; // Timeout: loop back to check 'done'
+
+        // 3. Handle New Connections (on the server socket)
+        if (poll_fds[0].revents & POLLIN)
         {
-            size_t n = read(new_socket, tcp_buffer + t, sizeof(uint64_t) - t);
-            if (n == 0)
-            {
-                // client closed connection error
-                break;
+            struct sockaddr_in client_addr;
+            socklen_t client_len = sizeof(client_addr);
+            int new_fd = accept(poll_fds[0].fd, (struct sockaddr*)&client_addr, &client_len);
+
+            if (new_fd >= 0) {
+                // Set to non-blocking so a slow client doesn't hang the whole loop
+                fcntl(new_fd, F_SETFL, O_NONBLOCK);
+                poll_fds.push_back({new_fd, POLLIN, 0});
+                std::cout << "[RT] Accepted new Listener. Total: " << poll_fds.size() - 1 << "\n";
             }
-            if (n < 0)
+            if (--activity <= 0) continue;
+        }
+
+        // 4. Handle Incoming Requests (from existing clients)
+        for (size_t i = 1; i < poll_fds.size(); ++i)
+        {
+            if (poll_fds[i].revents & POLLIN)
             {
-                if (errno == EINTR)
+                uint64_t requested_seq = 0;
+                // Attempt to read the 8-byte sequence number
+                ssize_t n = recv(poll_fds[i].fd, &requested_seq, sizeof(uint64_t), 0);
+
+                if (n == sizeof(uint64_t))
                 {
-                    perror("error in reading from tcp connection");
-                    continue;
+                    // Success! Fetch from the circular buffer using the power-of-2 mask
+                    MarketDataMessage* cached = &buffer[requested_seq & (SIZE - 1)];
+
+                    // Safety Check: Verify the cached message actually matches the request
+                    if (cached->seq_num == requested_seq)
+                    {
+                        // Send the 64-byte message back (MSG_NOSIGNAL prevents crash if client drops)
+                        send(poll_fds[i].fd, cached, sizeof(MarketDataMessage), MSG_NOSIGNAL);
+                    }
                 }
-            }
-            t += n;
-        }
-        // fetch data how?? :- bitmask sequence_number, fetch from raw array, reconfigure queue
-        // lets say you got the message
-        uint64_t *seq_num = reinterpret_cast<uint64_t *>(tcp_buffer);
-        if (buffer[*seq_num & (SIZE - 1)].seq_num == *seq_num) // sequence numbers match
-        {
-            size_t n = send(new_socket, buffer + ((*seq_num) & (SIZE - 1)), sizeof(MarketDataMessage), MSG_DONTWAIT | MSG_NOSIGNAL); // MSG_DONTWAIT :- non-blocking, MSG_NOSIGNAL :- dont crash everything
-            if (n < 0){
-                if (errno == EINTR || errno == EAGAIN){
-                    size_t n = send(new_socket, buffer + ((*seq_num) & (SIZE - 1)), sizeof(MarketDataMessage), MSG_DONTWAIT | MSG_NOSIGNAL); // try sending again once
-                }
-                else if (errno == EPIPE)
+                else if (n == 0 || (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK))
                 {
-                    //do nothing
+                    // Client disconnected or error
+                    std::cout << "[RT] Listener disconnected.\n";
+                    close(poll_fds[i].fd);
+                    poll_fds.erase(poll_fds.begin() + i);
+                    --i; // Adjust index due to removal
                 }
-                else
-                {
-                    perror("issue in send");
-                }
-            }
-            if (n < sizeof(MarketDataMessage))
-            {
-                //do we retry send
+                
+                if (--activity <= 0) break;
             }
         }
-        else
-        {
-            // handle the lack of message by outputting zeroes
-        }
-        close(new_socket);
+    }
+
+    // Cleanup: Close all active client connections on shutdown
+    for (auto& pfd : poll_fds) {
+        close(pfd.fd);
     }
 }
 
-void Retransmitter::init_batch(batch_t *b, int cap)
+void Retransmitter::init_batch(int cap)
 {
-    b->capacity = cap;
-    b->msgs = (struct mmsghdr *)calloc(cap, sizeof(struct mmsghdr)); // creates pointer to structs of mmsghdr
-    b->iov = (struct iovec *)calloc(cap, sizeof(struct iovec));      // creates pointers to the iovec structs
-    b->buffer = (char *)aligned_alloc(64, cap * MAX_MSG_SIZE);       // the actual memory buffer
-
-    for (int i = 0; i < cap; i++)
-    {
-        b->iov[i].iov_base = b->buffer + i * MAX_MSG_SIZE; // setting the base ptr for the message in the buffer
-        b->iov[i].iov_len = MAX_MSG_SIZE;                  // no bytes of messages currently present
-        b->msgs[i].msg_hdr.msg_iov = &b->iov[i];           // each mmsghdr gets its a pointer to the iov struct
-        b->msgs[i].msg_hdr.msg_iovlen = 1;                 // number of messages in each iovec struct, we have a single message, MarketDataMessage
-        b->msgs[i].msg_hdr.msg_name = nullptr;
-        b->msgs[i].msg_hdr.msg_namelen = 0;
-    }
+    batch.capacity = cap;
+    batch.tcp_buffer = (char*) aligned_alloc(64, cap * MAX_MSG_SIZE);
+    
 }
-#include <thread>
-#include <chrono>
-int main()
-{
-    Retransmitter rt;
-    auto tp = std::chrono::steady_clock::now();
-    std::thread store ([&]{ rt.storeThread(); });
-    std::thread listen ([&]{ rt.listenerThread(); });
-    store.join();
-    listen.join();
-    auto tp2 = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(tp2 - tp);
-    std::cout << duration.count() << "ms";
-}
+// #include <thread>
+// #include <chrono>
+// int main()
+// {
+//     Retransmitter rt;
+//     auto tp = std::chrono::steady_clock::now();
+//     std::thread store ([&]{ rt.storeThread(); });
+//     std::thread listen ([&]{ rt.listenerThread(); });
+//     store.join();
+//     listen.join();
+//     auto tp2 = std::chrono::steady_clock::now();
+//     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(tp2 - tp);
+//     std::cout << duration.count() << "ms";
+// }

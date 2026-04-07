@@ -62,7 +62,6 @@ namespace TradeRingBuffer {
 
     struct ring_buffer {
         item_node ring[RING_SIZE];                      // Stores the ring
-        alignas(64) std::atomic<pid_t> producer_pid;    // Stores the pid of the producer that can used to check if producer is alive
     };
 
     // Class that implements the ring buffer functionality

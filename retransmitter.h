@@ -1,4 +1,6 @@
+#include "common.h"
 
+#include <poll.h>
 #include <stdint.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -23,15 +25,13 @@
 2) Validate that the server client model is correct on this side
 3) Handle dropped packets by sending the entire 23 messages. Put a mutex on it?*/
 
-typedef struct {
-    struct mmsghdr *msgs;
-    struct iovec   *iov;
-    char           *buffer;
-    int             capacity;
-} batch_t;
+// typedef struct {
+//     char            *tcp_buffer;
+//     size_t             capacity;
+// } batch_t;
 
-constexpr size_t msg_per_packet = 23;
-constexpr size_t MAX_MSG_SIZE   = msg_per_packet * sizeof(MarketDataMessage);
+// constexpr size_t msg_per_packet = 23;
+// constexpr size_t MAX_MSG_SIZE   = msg_per_packet * sizeof(MarketDataMessage);
 constexpr size_t connection_backlog{10}; //what should it be?
 static const uint64_t SIZE{1 << 20}; // configure slot sizes to service requests for sequence numbers transmitted 1s ago
 class Retransmitter{
@@ -43,14 +43,15 @@ class Retransmitter{
         int sockfd_tcp_send;
         struct sockaddr_in addr_udp, addr_tcp;
         struct sockaddr_in servaddr, client;
-        int client_len;
+        socklen_t client_len;
         int connect_;
         int addrlen_tcp;
         batch_t batch;
         char *tcp_buffer; //should be size of sequence number
+        std::atomic_bool& flag;
     public:
-        Retransmitter();
+        Retransmitter(std::atomic_bool& flag);
         void storeThread(); // listenes on MarketFeed's UDP connection 
         void listenerThread(); //separate thread that processes requests by clients for missing messages
-        void init_batch(batch_t*, int cap);
+        void init_batch(int cap);
 };

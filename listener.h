@@ -1,3 +1,6 @@
+#pragma once
+
+
 // Listens to udp feed as well and queries for lost packets
 #include <stdint.h>
 #include <arpa/inet.h>

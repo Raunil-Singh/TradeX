@@ -19,7 +19,7 @@ private:
 
 public:
     spsc_queue() : array(new MarketDataMessage[queue_buffer_size]), head(0), tail(0) {}
-    bool push(MarketDataMessage &&);
+    bool push(MarketDataMessage*);
     bool pop(MarketDataMessage &);
     bool empty()
     {

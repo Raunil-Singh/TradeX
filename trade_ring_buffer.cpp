@@ -32,28 +32,6 @@ namespace TradeRingBuffer {
         close(fd);
         
         rb = static_cast<ring_buffer *>(ptr);
-        
-        // If no producer or, the producer is dead, allow a new producer to take over
-        if(is_producer) {
-            pid_t cur = rb->producer_pid.load(std::memory_order_acquire);
-
-            bool updated = false;
-
-            if (cur == 0 || kill(cur, 0) == ESRCH) {
-                // producer appears dead
-                pid_t expected = cur;
-                updated = rb->producer_pid.compare_exchange_strong(
-                            expected,
-                            getpid(),
-                            std::memory_order_acq_rel,
-                            std::memory_order_acquire);
-            }
-
-            if(!updated) {
-                // Another producer is active, cannot proceed
-                throw std::runtime_error("Another active producer detected. Cannot create producer instance.");
-            }
-        }
     }
 
     // No explicit check needed for producer because connsumers dont have write access

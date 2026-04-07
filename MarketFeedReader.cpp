@@ -8,36 +8,44 @@
 3) Backoff class to deal with spinning on any new trade
 */
 
-std::atomic_bool done{false};
-std::string get_interface_ip(const std::string& iface_name)
+// std::atomic_bool done{false};
+// std::string get_interface_ip(const std::string& iface_name)
+// {
+//     struct ifaddrs* ifaddr;
+//     getifaddrs(&ifaddr);
+//     for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
+//     {
+//         if (ifa->ifa_addr->sa_family == AF_INET && iface_name == ifa->ifa_name)
+//         {
+//             char buf[INET_ADDRSTRLEN];
+//             inet_ntop(AF_INET, &((struct sockaddr_in*)ifa->ifa_addr)->sin_addr, buf, sizeof(buf));
+//             freeifaddrs(ifaddr);
+//             return std::string(buf);
+//         }
+//     }
+//     freeifaddrs(ifaddr);
+//     throw std::runtime_error("interface not found: " + iface_name);
+// }
+MarketFeedReader::MarketFeedReader(std::atomic_bool& flag) : flag(flag), seq_num{0}
 {
-    struct ifaddrs* ifaddr;
-    getifaddrs(&ifaddr);
-    for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
+    for (int i = 0; i < TradeRingBuffer::total_ring_buffer_count; i++)
     {
-        if (ifa->ifa_addr->sa_family == AF_INET && iface_name == ifa->ifa_name)
-        {
-            char buf[INET_ADDRSTRLEN];
-            inet_ntop(AF_INET, &((struct sockaddr_in*)ifa->ifa_addr)->sin_addr, buf, sizeof(buf));
-            freeifaddrs(ifaddr);
-            return std::string(buf);
-        }
+        trb_vec[i] = new TradeRingBuffer::trade_ring_buffer(false, i);
     }
-    freeifaddrs(ifaddr);
-    throw std::runtime_error("interface not found: " + iface_name);
-}
-MarketFeedReader::MarketFeedReader(int id) : trb(false, id)
-{
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
     struct in_addr local_ip;
     // std::string ip = get_interface_ip("eno1");
-    if (inet_pton(AF_INET, "10.50.59.247", &local_ip) != 1)
+    if (inet_pton(AF_INET, "127.0.0.1", &local_ip) != 1)
     {
         perror("inet_pton local ip");
         exit(EXIT_FAILURE);
     } // using ethernet or wifi?, sets the ip address according
-
+    setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, &local_ip, sizeof(local_ip));
+    uint32_t loop = 1;
+    if (setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop)) < 0) {
+        perror("IP_MULTICAST_LOOP");
+    }
     int bufsize = 1 << 20;
     setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize)); // increases TX (send) buffer size
     addr.sin_family = AF_INET;                                            // operating on IPV4
@@ -47,32 +55,37 @@ MarketFeedReader::MarketFeedReader(int id) : trb(false, id)
         perror("inet_pton multicast");
         exit(EXIT_FAILURE);
     } // writes the binary address for the multicast group
-
+    
+    
     sockfd_tcp = socket(AF_INET, SOCK_STREAM, 0); 
-    if (sockfd == -1) { 
-        perror("socket creation failed...\n"); 
+    if (sockfd_tcp == -1) { 
+        perror("socket creation failed..."); 
         exit(EXIT_FAILURE); 
     }
-
+    int opt = 1;
+    tcp_port = 8000;
+    setsockopt(sockfd_tcp, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     servaddr.sin_family = AF_INET; 
-    servaddr.sin_addr.s_addr = inet_addr(""); // ethernet 
+    servaddr.sin_addr.s_addr = inet_addr("127.0.0.1"); // ethernet 
     servaddr.sin_port = htons(tcp_port);
     // Binding newly created socket to given IP and verification 
     if ((bind(sockfd_tcp, (struct sockaddr*)&servaddr, sizeof(servaddr))) != 0) { 
         perror("socket bind failed...\n"); 
         exit(0); 
     }
-    if ((listen(sockfd_tcp, 1)) != 0) { // for rt alone 
+    if ((listen(sockfd_tcp, SOMAXCONN)) != 0) { // for rt alone 
         perror("Listen failed...\n"); 
         exit(0); 
     }
-    client_len = sizeof(client);
-    connect_ = accept(sockfd_tcp, (struct sockaddr*) &client, (unsigned int*)&client_len);
-    if (connect_ < 0)
-    {
-        perror("Error in connecting to retransmitter");
-        exit(EXIT_FAILURE);
-    }
+    // client_len = sizeof(client);
+    // connect_ = accept(sockfd_tcp, (struct sockaddr*) &client, (unsigned int*)&client_len);
+    // // int flags = fcntl(connect_, F_GETFL, 0);
+    // // fcntl(connect_, F_SETFL, flags | O_NONBLOCK);
+    // if (connect_ < 0)
+    // {
+    //     perror("Error in connecting to retransmitter");
+    //     exit(EXIT_FAILURE);
+    // }
 
 
 }
@@ -99,19 +112,42 @@ void MarketFeedReader::init_batch(batch_t *b, int cap)
 void MarketFeedReader::readThread()
 {
     int trade_counter{};
-    while (trade_counter < 1'000'960)
+    MarketDataMessage in;
+    int rotation_lim{0};
+    bool next_trb{false};
+    while (true)
     {
-        if (trb.lagged_out())
+        //multiplexer
+        for (int i = 0; i < TradeRingBuffer::total_ring_buffer_count; i++)
         {
-            // deal with lag
+            if (trb_vec[i]->lagged_out())
+            {
+                // deal with lag
+            }
+            while (!trb_vec[i]->any_new_trade())
+            {
+                if (++rotation_lim == 10) // rotate if didnt get any trade 10 times
+                {
+                    rotation_lim = 0;
+                    next_trb = true;
+                }
+                if (flag == false)
+                {
+                    goto end;
+                }
+                // spinning
+            }
+            if (next_trb)
+            {
+                continue;
+            }
+            in = formatMarketData(trb_vec[i]->get_trade());
+            queue.push(&in);
+            trade_counter++;
+                
         }
-        while (!trb.any_new_trade())
-        {
-            // spinning
-        }
-        queue.push(formatMarketData(trb.get_trade()));
-        trade_counter++;
     }
+    end:
     done.store(true, std::memory_order_release);
     std:: cout << "reader done \n";
 }
@@ -120,92 +156,95 @@ void MarketFeedReader::sendThread()
 {
     batch_t *batch = (batch_t *)malloc(sizeof(batch_t));
     init_batch(batch, 64);
-    int msgs_sent{};
-    int msgs_packed{};
+    client_len = sizeof(client);
+    connect_ = accept(sockfd_tcp, (struct sockaddr*) &client, (unsigned int*)&client_len);
+    // int flags = fcntl(connect_, F_GETFL, 0);
+    // fcntl(connect_, F_SETFL, flags | O_NONBLOCK);
+    if (connect_ < 0)
+    {
+        perror("Error in connecting to retransmitter");
+        exit(EXIT_FAILURE);
+    }
     while (!done.load(std::memory_order_acquire) || !queue.empty())
     {
-        int msg_count = 0;
-
+        int packets_to_send = 0;
         int tcp_offset = 0;
-        while (msg_count < batch->capacity)
+
+        // Outer loop: Fill up to 'capacity' packets for sendmmsg
+        for (int p = 0; p < batch->capacity; ++p)
         {
-            char *ptr = (char *)batch->iov[msg_count].iov_base; // get message buffer
+            char *ptr = (char *)batch->iov[p].iov_base;
             int msgs_packed = 0;
 
+            // Inner loop: Pack up to 23 messages per UDP packet
             while (msgs_packed < (int)msg_per_packet)
             {
                 MarketDataMessage msg;
-                while (!queue.pop(msg))
+                // CHANGE: Use if (pop) instead of while (!pop) to handle empty queue
+                if (queue.pop(msg)) 
                 {
-                    // std::cout << "stuck here \n";
-                } // spin until we get one, maybe back off a acouple of times and exit and send incomplete packet
-                memcpy(ptr + msgs_packed * sizeof(MarketDataMessage), &msg, sizeof(MarketDataMessage));
-                memcpy(batch->tcp_buffer + tcp_offset, &msg, sizeof(msg));
-                tcp_offset += sizeof(msg);
-                msgs_packed++;
+                    memcpy(ptr + msgs_packed * sizeof(MarketDataMessage), &msg, sizeof(MarketDataMessage));
+                    memcpy(batch->tcp_buffer + tcp_offset, &msg, sizeof(MarketDataMessage));
+                    
+                    tcp_offset += sizeof(MarketDataMessage);
+                    msgs_packed++;
+                }
+                else 
+                {
+                    // Queue empty: Stop packing this packet and this batch
+                    goto flush; 
+                }
             }
-
-            batch->iov[msg_count].iov_len = msgs_packed * sizeof(MarketDataMessage);
-            msg_count++;
+            batch->iov[p].iov_len = msgs_packed * sizeof(MarketDataMessage);
+            packets_to_send++;
         }
-        msgs_packed++;
-        // std::cout << "all messages packed : " << msgs_packed<<"\n";
-        // partial send retry loop
-        int to_send = msg_count;
-        struct mmsghdr *cursor = batch->msgs;
 
+    flush:
+        // Handle the "tail" packet that wasn't fully finished in the loop
+        if (packets_to_send < batch->capacity) {
+            // Check if the current loop was in the middle of packing a packet
+            // We need to set the length for that partial packet too
+            int current_packet_msgs = (tcp_offset / sizeof(MarketDataMessage)) % msg_per_packet;
+            if (current_packet_msgs > 0) {
+                batch->iov[packets_to_send].iov_len = current_packet_msgs * sizeof(MarketDataMessage);
+                packets_to_send++;
+            }
+        }
+
+        if (packets_to_send == 0) continue;
+
+        // 1. UDP Send (Multiple Packets)
+        int to_send = packets_to_send;
+        struct mmsghdr *cursor = batch->msgs;
         while (to_send > 0)
         {
             int sent = sendmmsg(sockfd, cursor, to_send, 0);
-            if (sent < 0)
-            {
-                // switch (errno)
-                // {
-                // case EINTR:
-                //     continue;
-                // case EAGAIN:
-                //     // back off and retry
-                //     break;
-                // case EBADF:
-                // case ENOTSOCK:
-                // case ENETDOWN:
-                // case ENETUNREACH:
-                // case EACCES:
-                //     perror("sendmmsg fatal"); // prints "sendmmsg fatal: <human readable error>" to stderr
-                //     // shutdown logic
-                //     break;
-                // default:
-                //     perror("sendmmsg");
-                //     break;
-                // } 
-                perror("send");
-                goto done_sending;  
+            if (sent < 0) {
+                if (errno == EINTR) continue;
+                perror("sendmmsg");
+                goto done_sending;
             }
             cursor += sent;
             to_send -= sent;
         }
-        msgs_sent++;
-        // std::cout << "msgs sent : " << msgs_sent << "\n";
-        // TCP send (contiguous buffer) 
+
+        // 2. TCP Send (One contiguous stream matching the UDP data)
         size_t sent_total = 0;
-
-        while (sent_total < tcp_offset)
+        while (sent_total < (size_t)tcp_offset)
         {
-            ssize_t n = send(connect_,
-                                batch->tcp_buffer + sent_total,
-                                tcp_offset - sent_total,
-                                MSG_NOSIGNAL);
-
-            if (n <= 0) {
+            ssize_t n = send(connect_, batch->tcp_buffer + sent_total, tcp_offset - sent_total, MSG_NOSIGNAL);
+            if (n > 0) {
+                sent_total += n;
+            } else {
+                if (errno == EINTR || errno == EAGAIN) continue;
                 perror("tcp send");
                 goto done_sending;
             }
-
-            sent_total += n;
         }
     }
-    done_sending:
-        std::cout << "exited sender \n";
+
+done_sending:
+    std::cout << "exited sender \n";
 }
 
 MarketDataMessage MarketFeedReader::formatMarketData(matching_engine::Trade &&trade)
@@ -219,40 +258,40 @@ MarketDataMessage MarketFeedReader::formatMarketData(matching_engine::Trade &&tr
     out.seq_num = seq_num++;
     return out;
 }
-matching_engine::Trade make_fake_trade(uint64_t i)
-{
-    matching_engine::Trade t;
-    t.price        = 100.0 + (i % 100);
-    t.quantity     = 10 + (i % 50);
-    t.symbol_id    = i % 8;
-    t.timestamp_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-    t.trade_id     = i;
-    return t;
-}
-void pusher()
-{
-    TradeRingBuffer::trade_ring_buffer trb(true, 0); // ISSUE
-    matching_engine::Trade trade;
-    for (int i = 0; i < 1'000'960; i++)
-    {
-        trade = make_fake_trade(i);
-        trb.add_trade(trade);
-    }
-    std::cout<< "pusher done \n";
-}
-#include <thread>
-int main(){
-    MarketFeedReader mfr(0); // ISSUE
-    std::thread push(pusher);
-    push.join();
-    auto tp = std::chrono::steady_clock::now();
-    std::thread sender([&]{ mfr.sendThread(); });
-    std::thread reader([&]{ mfr.readThread(); });
-    sender.join();
-    reader.join();
+// matching_engine::Trade make_fake_trade(uint64_t i)
+// {
+//     matching_engine::Trade t;
+//     t.price        = 100.0 + (i % 100);
+//     t.quantity     = 10 + (i % 50);
+//     t.symbol_id    = i % 8;
+//     t.timestamp_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+//     t.trade_id     = i;
+//     return t;
+// }
+// void pusher()
+// {
+//     TradeRingBuffer::trade_ring_buffer trb(true, 0); // ISSUE
+//     matching_engine::Trade trade;
+//     for (int i = 0; i < 1'000'960; i++)
+//     {
+//         trade = make_fake_trade(i);
+//         trb.add_trade(trade);
+//     }
+//     std::cout<< "pusher done \n";
+// }
+// #include <thread>
+// int main(){
+//     // MarketFeedReader mfr(0); // ISSUE
+//     std::thread push(pusher);
+//     push.join();
+//     auto tp = std::chrono::steady_clock::now();
+//     std::thread sender([&]{ mfr.sendThread(); });
+//     std::thread reader([&]{ mfr.readThread(); });
+//     sender.join();
+//     reader.join();
 
-    auto tp2 = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(tp2 - tp);
-    std::cout << "Throughput: " << (1'000'960) / static_cast<double>(duration.count()) << "\n";
-    std::cout << "Duration: " << duration.count() << "ms\n";
-}
+//     auto tp2 = std::chrono::steady_clock::now();
+//     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(tp2 - tp);
+//     std::cout << "Throughput: " << (1'000'960) / static_cast<double>(duration.count()) << "\n";
+//     std::cout << "Duration: " << duration.count() << "ms\n";
+// }

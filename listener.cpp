@@ -72,16 +72,14 @@ namespace Client{
         }
 
         struct ip_mreq mreq;
-        mreq.imr_multiaddr.s_addr = inet_addr("239.1.1.1"); // subscribing to the multicast group
-        // std::string ip = get_interface_ip("en1"); //idk??
-        mreq.imr_interface.s_addr = inet_addr("10.50.59.247");  // over ethernet
+        
         if (inet_pton(AF_INET, "239.1.1.1", &mreq.imr_multiaddr) != 1)
         {
             perror("inet_pton multicast group");
             exit(EXIT_FAILURE);
         }
 
-        if (inet_pton(AF_INET, "10.50.59.247", &mreq.imr_interface) != 1)
+        if (inet_pton(AF_INET, "127.0.0.1", &mreq.imr_interface) != 1)
         {
             perror("inet_pton interface");
             exit(EXIT_FAILURE);
@@ -91,8 +89,23 @@ namespace Client{
             perror("setsockopt failed while setting up membership to udp multicast");
             exit(EXIT_FAILURE);
         }
+        uint32_t loop = 1;
+        if (setsockopt(sockfd_udp, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop)) < 0) {
+            perror("IP_MULTICAST_LOOP");
+        }
+        sockfd_tcp = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd_tcp < 0) { perror("TCP socket"); exit(EXIT_FAILURE); }
 
+        // Connect to Retransmitter (Server) on 127.0.0.1:8080
+        addr_tcp.sin_family = AF_INET;
+        addr_tcp.sin_port = htons(8080);
+        inet_pton(AF_INET, "127.0.0.1", &addr_tcp.sin_addr);
 
+        std::cout << "[Client] Connecting to Retransmitter TCP..." << std::endl;
+        if (connect(sockfd_tcp, (struct sockaddr*)&addr_tcp, sizeof(addr_tcp)) < 0) {
+            perror("TCP connect to Retransmitter failed");
+            exit(EXIT_FAILURE);
+        }
     }
 
     void Listener::listener()
@@ -108,30 +121,31 @@ namespace Client{
                 perror("recvmmsg");
                 continue;
             }
-            uint64_t identity_seq_num =  ((MarketDataMessage*)batch.iov[0].iov_base)->seq_num; //getting first sequence number;
-            if (identity_seq_num != last_seq_num + msg_per_packet)
-            {
-                //create a request for missing_packet_request probably launch a thread for that or an async task
-                int missing_packets = (identity_seq_num - last_seq_num) / msg_per_packet - 1;
-                for (int i = 0; i < missing_packets; i++)
-                {
-                    last_seq_num += 23;
-                    queue.push(std::move(last_seq_num)); // sequence number. Change retransmitter to send back a whole packet
-                }
-            }
-            last_seq_num =  identity_seq_num; //I think this should be handled both ways, but just becasue
             for (int i = 0; i < ret; i++)
             {
 
                 // parsing logic feels fragile
                 char *p_msg = (char *)batch.iov[i].iov_base;
-                for (int count = 0; count < (batch.iov[i].iov_len / sizeof(MarketDataMessage)); count++)
+                size_t bytes_received = batch.msgs[i].msg_len;
+                int msgs_in_packet = bytes_received / sizeof(MarketDataMessage);
+                
+                for (int count = 0; count < msgs_in_packet; count++)
                 {
                     MarketDataMessage *msg = reinterpret_cast<MarketDataMessage *>(p_msg); // trying to get the MarketDataMessage, why am i doing + 64???
                     // std::memcpy(buffer + (msg->seq_num & (SIZE - 1)), msg, sizeof(*msg)); //confused as to what listener will do
+                    if (msg->seq_num > last_seq_num + 1)
+                    {
+                        // Calculate and push missing sequence numbers
+                        for (uint64_t missing = last_seq_num + 1; missing < msg->seq_num; ++missing)
+                        {
+                            queue.push(std::move(missing));
+                        }
+                    }
+                    last_seq_num = msg->seq_num;
                     p_msg += sizeof(MarketDataMessage);
                 }
             }
+            
         }
     }
 
@@ -140,47 +154,22 @@ namespace Client{
         uint64_t seq_num{};
         while (true)
         {
-                // setting up tcp
-                //move to create request for missing seq num
-            sockfd_tcp = socket(AF_INET, SOCK_STREAM, 0); // TCP over IPV4
-            if (sockfd_tcp < 0)
-            {
-                perror("Error in UDP socket creation in Retransmitter");
-                exit(EXIT_FAILURE);
-            }
-            struct in_addr local_ip_udp, local_ip_tcp;
-            int opt = 1;
-            int PORT = 8080;
-            setsockopt(sockfd_tcp, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-            addr_tcp.sin_family = AF_INET;
-            if (inet_pton(AF_INET, "", &addr_tcp.sin_addr) <= 0)
-            {
-                std::cerr << "Invalid address for server\n";
-            }
-            addr_tcp.sin_port = htons(PORT);
-            addrlen_tcp = sizeof(addr_tcp);
+            
 
             while (!queue.pop(seq_num))
             {
                 continue;
             }
 
-            //open tcp connection
-            int status = connect(sockfd_tcp, (struct sockaddr*)&addr_tcp, sizeof(addr_tcp));
-            if (status < 0)
-            {
-                switch(errno){
-                    //handle errors
-                }
-                    
-            }
-            int ret = send(sockfd_tcp, &seq_num, sizeof(seq_num), 0); // get just that trade or all 23 trades in a packet???
-            if (ret < 0)
+            ssize_t sent = send(sockfd_tcp, &seq_num, sizeof(seq_num), 0); // get just that trade or all 23 trades in a packet???
+            if (sent < 0)
             {
                 //handle errors
             }
+            
+            MarketDataMessage recover;
+            ssize_t received = recv(sockfd_tcp, &recover, sizeof(MarketDataMessage), MSG_WAITALL);
             // put it in smth
-            close(sockfd_tcp);
             
         }
     }
