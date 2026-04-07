@@ -48,6 +48,7 @@ namespace Client{
 
     Listener::Listener() : last_seq_num{}
     {
+        init_batch(64);
         sockfd_udp = socket(AF_INET, SOCK_DGRAM, 0); // UDP over IPV4
         if (sockfd_udp < 0)
         {
@@ -110,6 +111,7 @@ namespace Client{
 
     void Listener::listener()
     {
+        
         while (true)
         {
             int ret = recvmmsg(sockfd_udp, batch.msgs, 64, MSG_DONTWAIT, NULL); // non-blocking batch receive
