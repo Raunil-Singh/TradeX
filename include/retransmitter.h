@@ -17,6 +17,7 @@
 #include <ifaddrs.h>
 #include <string>
 #include <atomic>
+#include <vector>
 #include <iostream>
 
 #include "message.h"

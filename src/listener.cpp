@@ -31,6 +31,7 @@ namespace Client{
     }
     void Listener::init_batch(int capacity)
     {
+        batch.capacity = capacity;
         batch.msgs = (struct mmsghdr*) calloc(capacity, sizeof(struct mmsghdr));
         batch.iov = (struct iovec*) calloc(capacity, sizeof(struct iovec));
         batch.buffer = (char*) aligned_alloc(64, MAX_MSG_SIZE * capacity);
@@ -48,7 +49,6 @@ namespace Client{
 
     Listener::Listener() : last_seq_num{}
     {
-        init_batch(64);
         sockfd_udp = socket(AF_INET, SOCK_DGRAM, 0); // UDP over IPV4
         if (sockfd_udp < 0)
         {
@@ -111,10 +111,11 @@ namespace Client{
 
     void Listener::listener()
     {
-        
+        init_batch(64);
+
         while (!done.load(std::memory_order_acquire))
         {
-            int ret = recvmmsg(sockfd_udp, batch.msgs, 64, MSG_DONTWAIT, NULL); // non-blocking batch receive
+            int ret = recvmmsg(sockfd_udp, batch.msgs, batch.capacity, MSG_DONTWAIT, NULL); // non-blocking batch receive
             if (ret < 0)
             {
                 if (errno == EAGAIN || errno == EINTR)

@@ -67,7 +67,7 @@ namespace Client{
     class Listener
     {
         private:
-            batch_t batch;
+            batch_t batch{};
             int sockfd_udp, sockfd_tcp;
             struct sockaddr_in addr_udp, addr_tcp;
             int addrlen_tcp;

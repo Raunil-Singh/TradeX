@@ -1,5 +1,8 @@
 #include "retransmitter.h"
 
+#include <poll.h>
+#include <vector>
+
 /*TODO:
 1) Get ip for wifi and ethernet
 2) Test
@@ -187,9 +190,6 @@ void Retransmitter::storeThread()
     }
     done.store(true, std::memory_order_release);
 }
-
-#include <vector>
-#include <poll.h>
 
 void Retransmitter::listenerThread()
 {

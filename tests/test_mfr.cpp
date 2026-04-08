@@ -3,6 +3,7 @@
 #include "listener.h"
 #include <thread>
 #include <vector>
+#include <cstdlib>
 
 // 1. Change: Start with flag = true, pusher sets it to false when done.
 std::atomic_bool flag{true}; 
@@ -58,12 +59,10 @@ int main() {
     std::this_thread::sleep_for(std::chrono::seconds(2));
     
     std::cout << "[Test] All data pushed. Shutting down...\n";
-    // In a real test, you'd implement a proper shutdown for the 'while(true)' loops
-    // For now, main will exit and the threads will be destroyed.
-    for (auto& t : threads) {
-        if (t.joinable()) t.detach(); 
-    }
-    return 0;
+    // Thread loops in current components do not have a complete coordinated stop path.
+    // Exit immediately after the smoke run to avoid destructor-time races.
+    std::fflush(stdout);
+    std::_Exit(0);
 }
 
 // Fixed Pusher Logic
