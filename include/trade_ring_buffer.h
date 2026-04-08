@@ -84,6 +84,7 @@ namespace TradeRingBuffer {
     private:
         void update_index_and_seq();            // Updates index and next_expected_seq after reading a trade
 
+        int32_t buffer_id;
         ring_buffer * rb;                       // Pointer to the shared ring buffer
         uint64_t index;                         // stores the index in the ring buffer that is being accessed
         uint64_t next_expected_seq;             // calculated using MOD

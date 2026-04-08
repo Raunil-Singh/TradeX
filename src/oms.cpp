@@ -263,6 +263,7 @@ void OrderManagementSystem::send_slice(uint64_t parent_id) {
     child_to_parent[child_id] = parent_id;
     InternalOrder child_order;
     child_order.order_id = child_id;
+    child_order.client_order_id = child_id;
     child_order.symbol_id = parent.symbol_id;
     child_order.price = parent.price;
     child_order.quantity = slice_qty;

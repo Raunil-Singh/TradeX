@@ -36,7 +36,7 @@ int main() {
     // LIMIT TEST
     oms::ClientOrder aapl_sell{};
     aapl_sell.client_order_id = 101;
-    aapl_sell.price = 10000;
+    aapl_sell.price = 24000;
     aapl_sell.quantity = 100;
     aapl_sell.type = matching_engine::OrderType::SELL;
     aapl_sell.execution_type = oms::ClientOrderType::LIMIT;
@@ -44,7 +44,7 @@ int main() {
 
     oms::ClientOrder aapl_buy{};
     aapl_buy.client_order_id = 102;
-    aapl_buy.price = 10000;
+    aapl_buy.price = 24000;
     aapl_buy.quantity = 50;
     aapl_buy.type = matching_engine::OrderType::BUY;
     aapl_buy.execution_type = oms::ClientOrderType::LIMIT;
@@ -52,7 +52,7 @@ int main() {
 
     oms::ClientOrder aapl_buy2{};
     aapl_buy2.client_order_id = 103;
-    aapl_buy2.price = 10000;
+    aapl_buy2.price = 24000;
     aapl_buy2.quantity = 50;
     aapl_buy2.type = matching_engine::OrderType::BUY;
     aapl_buy2.execution_type = oms::ClientOrderType::LIMIT;
@@ -69,7 +69,7 @@ int main() {
     // STOP LOSS TEST
     oms::ClientOrder aapl_sell_l{};
     aapl_sell_l.client_order_id = 105;
-    aapl_sell_l.price = 10000;
+    aapl_sell_l.price = 24000;
     aapl_sell_l.quantity = 100;
     aapl_sell_l.type = matching_engine::OrderType::SELL;
     aapl_sell_l.execution_type = oms::ClientOrderType::LIMIT;
@@ -77,7 +77,7 @@ int main() {
 
     oms::ClientOrder aapl_sl_b{};
     aapl_sl_b.client_order_id = 106;
-    aapl_sl_b.price = 9400;
+    aapl_sl_b.price = 23000;
     aapl_sl_b.trigger_price = 9500;
     aapl_sl_b.type = matching_engine::OrderType::BUY;
     aapl_sl_b.execution_type = oms::ClientOrderType::STOP_LOSS;
@@ -86,7 +86,7 @@ int main() {
 
     oms::ClientOrder aapl_sell_l2{};
     aapl_sell_l2.client_order_id = 107;
-    aapl_sell_l2.price = 9500;
+    aapl_sell_l2.price = 23500;
     aapl_sell_l2.quantity = 100;
     aapl_sell_l2.type = matching_engine::OrderType::SELL;
     aapl_sell_l2.execution_type = oms::ClientOrderType::LIMIT;
@@ -94,7 +94,7 @@ int main() {
 
     oms::ClientOrder aapl_buy_b2{};
     aapl_buy_b2.client_order_id = 108;
-    aapl_buy_b2.price = 9500;
+    aapl_buy_b2.price = 23500;
     aapl_buy_b2.quantity = 100;
     aapl_buy_b2.type = matching_engine::OrderType::BUY;
     aapl_buy_b2.execution_type = oms::ClientOrderType::LIMIT;
@@ -102,7 +102,7 @@ int main() {
     
     oms::ClientOrder aapl_buy_b3{};
     aapl_buy_b3.client_order_id = 109;
-    aapl_buy_b3.price = 9400;
+    aapl_buy_b3.price = 23000;
     aapl_buy_b3.quantity = 100;
     aapl_buy_b3.type = matching_engine::OrderType::SELL;
     aapl_buy_b3.execution_type = oms::ClientOrderType::LIMIT;
@@ -111,7 +111,7 @@ int main() {
     // ICEBERG TEST
     oms::ClientOrder aapl_ib_b{};
     aapl_ib_b.client_order_id = 110;
-    aapl_ib_b.price = 10000;
+    aapl_ib_b.price = 24000;
     aapl_ib_b.type = matching_engine::OrderType::BUY;
     aapl_ib_b.execution_type = oms::ClientOrderType::LIMIT;
     aapl_ib_b.quantity = 100;
@@ -119,7 +119,7 @@ int main() {
 
     oms::ClientOrder aapl_ib{};
     aapl_ib.client_order_id = 111;
-    aapl_ib.price = 10000;
+    aapl_ib.price = 24000;
     aapl_ib.quantity = 100;
     aapl_ib.type = matching_engine::OrderType::SELL;
     aapl_ib.execution_type = oms::ClientOrderType::ICEBERG;
@@ -132,7 +132,7 @@ int main() {
     // LIMIT TEST
     oms::ClientOrder tsla_sell{};
     tsla_sell.client_order_id = 201;
-    tsla_sell.price = 20000;
+    tsla_sell.price = 35000;
     tsla_sell.quantity = 100;
     tsla_sell.type = matching_engine::OrderType::SELL;
     tsla_sell.execution_type = oms::ClientOrderType::LIMIT;
@@ -140,7 +140,7 @@ int main() {
 
     oms::ClientOrder tsla_buy{};
     tsla_buy.client_order_id = 202;
-    tsla_buy.price = 20000;
+    tsla_buy.price = 35000;
     tsla_buy.quantity = 50;
     tsla_buy.type = matching_engine::OrderType::BUY;
     tsla_buy.execution_type = oms::ClientOrderType::LIMIT;
@@ -148,7 +148,7 @@ int main() {
 
     oms::ClientOrder tsla_buy2{};
     tsla_buy2.client_order_id = 203;
-    tsla_buy2.price = 20000;
+    tsla_buy2.price = 35000;
     tsla_buy2.quantity = 50;
     tsla_buy2.type = matching_engine::OrderType::BUY;
     tsla_buy2.execution_type = oms::ClientOrderType::LIMIT;
@@ -157,7 +157,7 @@ int main() {
     // STOP LOSS TEST
     oms::ClientOrder tsla_sell_l{};
     tsla_sell_l.client_order_id = 204;
-    tsla_sell_l.price = 10000;
+    tsla_sell_l.price = 35000;
     tsla_sell_l.quantity = 100;
     tsla_sell_l.type = matching_engine::OrderType::SELL;
     tsla_sell_l.execution_type = oms::ClientOrderType::LIMIT;
@@ -165,8 +165,8 @@ int main() {
 
     oms::ClientOrder tsla_sl_b{};
     tsla_sl_b.client_order_id = 205;
-    tsla_sl_b.price = 9400;
-    tsla_sl_b.trigger_price = 9500;
+    tsla_sl_b.price = 33000;
+    tsla_sl_b.trigger_price = 34000;
     tsla_sl_b.type = matching_engine::OrderType::BUY;
     tsla_sl_b.execution_type = oms::ClientOrderType::STOP_LOSS;
     tsla_sl_b.quantity = 100;
@@ -174,7 +174,7 @@ int main() {
 
     oms::ClientOrder tsla_sell_l2{};
     tsla_sell_l2.client_order_id = 206;
-    tsla_sell_l2.price = 9500;
+    tsla_sell_l2.price = 34000;
     tsla_sell_l2.quantity = 100;
     tsla_sell_l2.type = matching_engine::OrderType::SELL;
     tsla_sell_l2.execution_type = oms::ClientOrderType::LIMIT;
@@ -182,7 +182,7 @@ int main() {
 
     oms::ClientOrder tsla_buy_b2{};
     tsla_buy_b2.client_order_id = 207;
-    tsla_buy_b2.price = 9500;
+    tsla_buy_b2.price = 34000;
     tsla_buy_b2.quantity = 100;
     tsla_buy_b2.type = matching_engine::OrderType::BUY;
     tsla_buy_b2.execution_type = oms::ClientOrderType::LIMIT;
@@ -190,7 +190,7 @@ int main() {
     
     oms::ClientOrder tsla_buy_b3{};
     tsla_buy_b3.client_order_id = 208;
-    tsla_buy_b3.price = 9400;
+    tsla_buy_b3.price = 33000;
     tsla_buy_b3.quantity = 100;
     tsla_buy_b3.type = matching_engine::OrderType::SELL;
     tsla_buy_b3.execution_type = oms::ClientOrderType::LIMIT;
@@ -199,7 +199,7 @@ int main() {
     // ICEBERG TEST
     oms::ClientOrder tsla_ib_b{};
     tsla_ib_b.client_order_id = 209;
-    tsla_ib_b.price = 10000;
+    tsla_ib_b.price = 35000;
     tsla_ib_b.type = matching_engine::OrderType::BUY;
     tsla_ib_b.execution_type = oms::ClientOrderType::LIMIT;
     tsla_ib_b.quantity = 100;
@@ -207,7 +207,7 @@ int main() {
 
     oms::ClientOrder tsla_ib{};
     tsla_ib.client_order_id = 210;
-    tsla_ib.price = 10000;
+    tsla_ib.price = 35000;
     tsla_ib.quantity = 100;
     tsla_ib.type = matching_engine::OrderType::SELL;
     tsla_ib.execution_type = oms::ClientOrderType::ICEBERG;
@@ -232,7 +232,7 @@ int main() {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    // while(!oms_system.enqueueClientOrder(aapl_sell_l)) {}
+    // // while(!oms_system.enqueueClientOrder(aapl_sell_l)) {}
     while(!oms_system.enqueueClientOrder(aapl_sl_b)) {}
     while(!oms_system.enqueueClientOrder(aapl_sell_l2)) {}
     while(!oms_system.enqueueClientOrder(aapl_buy_b2)) {}
@@ -241,15 +241,15 @@ int main() {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     // while(!oms_system.enqueueClientOrder(tsla_sell_l)) {}
-    while(!oms_system.enqueueClientOrder(tsla_sl_b)) {}
-    while(!oms_system.enqueueClientOrder(tsla_sell_l2)) {}
-    while(!oms_system.enqueueClientOrder(tsla_buy_b2)) {}
-    while(!oms_system.enqueueClientOrder(tsla_buy_b3)) {}
+    // while(!oms_system.enqueueClientOrder(tsla_sl_b)) {}
+    // while(!oms_system.enqueueClientOrder(tsla_sell_l2)) {}
+    // while(!oms_system.enqueueClientOrder(tsla_buy_b2)) {}
+    // while(!oms_system.enqueueClientOrder(tsla_buy_b3)) {}
 
-    // while(!oms_system.enqueueClientOrder(aapl_ib_b)){};
-    // while(!oms_system.enqueueClientOrder(tsla_ib_b)){};
-    // while(!oms_system.enqueueClientOrder(aapl_ib)){};
-    // while(!oms_system.enqueueClientOrder(tsla_ib)){};
+    while(!oms_system.enqueueClientOrder(aapl_ib_b)){};
+    while(!oms_system.enqueueClientOrder(tsla_ib_b)){};
+    while(!oms_system.enqueueClientOrder(aapl_ib)){};
+    while(!oms_system.enqueueClientOrder(tsla_ib)){};
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     std::cout << "Test Complete. Check logs for processing." << std::endl;

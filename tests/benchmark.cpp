@@ -40,6 +40,7 @@ int main() {
 
     std::vector<oms::ClientOrder> orders(NUM_ORDERS, oms::ClientOrder{});
     for (int i = 0; i < NUM_ORDERS; ++i) {
+        orders[i].client_order_id = i+1;
         strcpy(orders[i].symbol, "AAPL");
         orders[i].quantity = (rand() % 100) + 1;
         orders[i].price = 10000 + (rand() % 100);
