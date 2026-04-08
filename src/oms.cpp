@@ -68,6 +68,9 @@ void OrderManagementSystem::stop() {
 }
 
 bool OrderManagementSystem::enqueueClientOrder(const ClientOrder& order) {
+    #ifdef EXPO_MODE
+    std::lock_guard<std::mutex> lock(enqueue_mutex);
+    #endif // EXPO_MODE
     return incoming_orders.push(order);
 }
 

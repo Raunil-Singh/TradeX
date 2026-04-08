@@ -3,11 +3,11 @@
 
 #include <map>
 #include <unordered_map>
-#include <mutex>
 #include <atomic>
 #include <thread>
 #include <vector>
 #include <chrono>
+#include <cstdint>
 #include "order.h" 
 #include "trade.h"
 #include "trade_ring_buffer.h"
