@@ -12,6 +12,7 @@
 #include "trade.h"
 #include "trade_ring_buffer.h"
 #include "producer_consumer.cpp"
+#include "absl/container/flat_hash_map.h"
 
 namespace oms {
 
@@ -75,8 +76,8 @@ private:
 
     struct MarketData { uint64_t last_price; };    
 
-    std::unordered_map<uint64_t, ClientOrder> active_icebergs; 
-    std::unordered_map<uint64_t, uint64_t> child_to_parent; // Child ID -> Parent ID
+    absl::flat_hash_map<uint64_t, ClientOrder> active_icebergs; 
+    absl::flat_hash_map<uint64_t, uint64_t> child_to_parent; // Child ID -> Parent ID
 
     matching_engine::RingBuffer<ClientOrder> incoming_orders;
 

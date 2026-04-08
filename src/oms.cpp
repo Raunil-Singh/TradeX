@@ -83,7 +83,7 @@ void OrderManagementSystem::listenForClientOrder() {
 
     while(!shutdown.load(std::memory_order_relaxed)) {
         InternalOrder out;
-        while(incoming_orders.pop(new_order)) {
+        if(incoming_orders.pop(new_order)) {
             
             new_order.symbol_id = find_id(new_order.symbol);
             //ICEBERG
