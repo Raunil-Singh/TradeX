@@ -73,7 +73,7 @@ namespace Client{
             int addrlen_tcp;
             uint64_t last_seq_num;
             spsc_queue queue;
-
+            std::atomic_bool done{false};
         public:
             Listener();
             void listener();

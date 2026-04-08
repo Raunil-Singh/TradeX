@@ -60,7 +60,9 @@ int main() {
     std::cout << "[Test] All data pushed. Shutting down...\n";
     // In a real test, you'd implement a proper shutdown for the 'while(true)' loops
     // For now, main will exit and the threads will be destroyed.
-    
+    for (auto& t : threads) {
+        if (t.joinable()) t.detach(); 
+    }
     return 0;
 }
 

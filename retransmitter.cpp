@@ -199,18 +199,22 @@ void Retransmitter::listenerThread()
 
     std::cout << "[RT] Retransmit server active. Monitoring for requests...\n";
 
-    while (!done.load(std::memory_order_acquire))
+    while (true)
     {
         // 2. Wait for activity (100ms timeout to allow checking the 'done' flag)
         int activity = poll(poll_fds.data(), poll_fds.size(), 100);
-
+        bool mfr_finished = done.load(std::memory_order_acquire);
         if (activity < 0) {
             if (errno == EINTR) continue;
             perror("poll error");
             break;
         }
 
-        if (activity == 0) continue; // Timeout: loop back to check 'done'
+        if (activity == 0 && mfr_finished)
+        { 
+            break; // Timeout: loop back to check 'done'
+        }
+
 
         // 3. Handle New Connections (on the server socket)
         if (poll_fds[0].revents & POLLIN)
@@ -264,9 +268,12 @@ void Retransmitter::listenerThread()
     }
 
     // Cleanup: Close all active client connections on shutdown
-    for (auto& pfd : poll_fds) {
-        close(pfd.fd);
+    for (int i = 1; i < poll_fds.size(); i++)
+    {
+        shutdown(poll_fds[i].fd, SHUT_WR);
+        close(poll_fds[i].fd);
     }
+    close(poll_fds[0].fd);
 }
 
 void Retransmitter::init_batch(int cap)

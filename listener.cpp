@@ -112,7 +112,7 @@ namespace Client{
     void Listener::listener()
     {
         
-        while (true)
+        while (!done.load(std::memory_order_acquire))
         {
             int ret = recvmmsg(sockfd_udp, batch.msgs, 64, MSG_DONTWAIT, NULL); // non-blocking batch receive
             if (ret < 0)
@@ -160,6 +160,11 @@ namespace Client{
 
             while (!queue.pop(seq_num))
             {
+                if (done.load(std::memory_order_relaxed))
+                {
+                    return;
+                    
+                }
                 continue;
             }
 
@@ -172,7 +177,10 @@ namespace Client{
             MarketDataMessage recover;
             ssize_t received = recv(sockfd_tcp, &recover, sizeof(MarketDataMessage), MSG_WAITALL);
             // put it in smth
-            
+            if (received == 0)
+            {
+                 done.store(true, std::memory_order_release);
+            }
         }
     }
 }
