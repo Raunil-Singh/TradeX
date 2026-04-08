@@ -160,8 +160,8 @@ public:
                     .trade_id = next_trade_id++,
                     .timestamp_ns = order.timestamp,
                     .price = best_price,
-                    .buy_order_id = order.order_id,
-                    .sell_order_id = book.getpricelevels(price_index).gethead()->order.order_id,
+                    .buy_order_id = order.client_order_id,
+                    .sell_order_id = book.getpricelevels(price_index).gethead()->order.client_order_id,
                     .symbol_id = order.symbol_id,
                     .quantity = order.quantity
                 });
@@ -177,8 +177,8 @@ public:
                     .trade_id = next_trade_id++,
                     .timestamp_ns = order.timestamp,
                     .price = best_price,
-                    .buy_order_id = order.order_id,
-                    .sell_order_id = book.getpricelevels(price_index).gethead()->order.order_id,
+                    .buy_order_id = order.client_order_id,
+                    .sell_order_id = book.getpricelevels(price_index).gethead()->order.client_order_id,
                     .symbol_id = order.symbol_id,
                     .quantity = traded_quantity
                 });
@@ -213,8 +213,8 @@ public:
                     .trade_id = next_trade_id++,
                     .timestamp_ns = order.timestamp,
                     .price = best_price,
-                    .buy_order_id = book.getpricelevels(price_index).gethead()->order.order_id,
-                    .sell_order_id = order.order_id,
+                    .buy_order_id = book.getpricelevels(price_index).gethead()->order.client_order_id,
+                    .sell_order_id = order.client_order_id,
                     .symbol_id = order.symbol_id,
                     .quantity = order.quantity
                 });
@@ -230,8 +230,8 @@ public:
                     .trade_id = next_trade_id++,
                     .timestamp_ns = order.timestamp,
                     .price = best_price,
-                    .buy_order_id = book.getpricelevels(price_index).gethead()->order.order_id,
-                    .sell_order_id = order.order_id,
+                    .buy_order_id = book.getpricelevels(price_index).gethead()->order.client_order_id,
+                    .sell_order_id = order.client_order_id,
                     .symbol_id = order.symbol_id,
                     .quantity = traded_quantity
                 });
@@ -259,7 +259,7 @@ public:
                     .trade_id = next_trade_id++,
                     .timestamp_ns = order.timestamp,
                     .price = 0,
-                    .buy_order_id = order.order_id,
+                    .buy_order_id = order.client_order_id,
                     .sell_order_id = 0,
                     .symbol_id = order.symbol_id,
                     .quantity = 0
@@ -273,7 +273,7 @@ public:
                     .timestamp_ns = order.timestamp,
                     .price = 0,
                     .buy_order_id = 0,
-                    .sell_order_id = order.order_id,
+                    .sell_order_id = order.client_order_id,
                     .symbol_id = order.symbol_id,
                     .quantity = 0
                 });

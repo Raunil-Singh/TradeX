@@ -32,16 +32,18 @@ int main() {
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    // ---------- GROUP 0: AAPL (Symbol ID 1) ----------
-    //LIMIT TEST
+   // ---------- GROUP 0: AAPL (Symbol ID 1) ----------
+    // LIMIT TEST
     oms::ClientOrder aapl_sell{};
+    aapl_sell.client_order_id = 101;
     aapl_sell.price = 10000;
     aapl_sell.quantity = 100;
     aapl_sell.type = matching_engine::OrderType::SELL;
     aapl_sell.execution_type = oms::ClientOrderType::LIMIT;
-    strcpy(aapl_sell.symbol, "AAPL"); // Mapping must ensure ID 1
+    strcpy(aapl_sell.symbol, "AAPL");
 
     oms::ClientOrder aapl_buy{};
+    aapl_buy.client_order_id = 102;
     aapl_buy.price = 10000;
     aapl_buy.quantity = 50;
     aapl_buy.type = matching_engine::OrderType::BUY;
@@ -49,28 +51,32 @@ int main() {
     strcpy(aapl_buy.symbol, "AAPL");
 
     oms::ClientOrder aapl_buy2{};
+    aapl_buy2.client_order_id = 103;
     aapl_buy2.price = 10000;
     aapl_buy2.quantity = 50;
     aapl_buy2.type = matching_engine::OrderType::BUY;
     aapl_buy2.execution_type = oms::ClientOrderType::LIMIT;
     strcpy(aapl_buy2.symbol, "AAPL");
 
-    //MARKET TEST
+    // MARKET TEST
     oms::ClientOrder aapl_m{};
+    aapl_m.client_order_id = 104;
     aapl_m.quantity = 100;
     aapl_m.type = matching_engine::OrderType::BUY;
     aapl_m.execution_type = oms::ClientOrderType::MARKET;
     strcpy(aapl_m.symbol,"AAPL");
 
-    //STOP LOSS TEST
+    // STOP LOSS TEST
     oms::ClientOrder aapl_sell_l{};
+    aapl_sell_l.client_order_id = 105;
     aapl_sell_l.price = 10000;
     aapl_sell_l.quantity = 100;
     aapl_sell_l.type = matching_engine::OrderType::SELL;
     aapl_sell_l.execution_type = oms::ClientOrderType::LIMIT;
-    strcpy(aapl_sell_l.symbol, "AAPL"); // Mapping must ensure ID 1
+    strcpy(aapl_sell_l.symbol, "AAPL");
 
     oms::ClientOrder aapl_sl_b{};
+    aapl_sl_b.client_order_id = 106;
     aapl_sl_b.price = 9400;
     aapl_sl_b.trigger_price = 9500;
     aapl_sl_b.type = matching_engine::OrderType::BUY;
@@ -79,13 +85,15 @@ int main() {
     strcpy(aapl_sl_b.symbol,"AAPL");
 
     oms::ClientOrder aapl_sell_l2{};
+    aapl_sell_l2.client_order_id = 107;
     aapl_sell_l2.price = 9500;
     aapl_sell_l2.quantity = 100;
     aapl_sell_l2.type = matching_engine::OrderType::SELL;
     aapl_sell_l2.execution_type = oms::ClientOrderType::LIMIT;
-    strcpy(aapl_sell_l2.symbol, "AAPL"); // Mapping must ensure ID 1
+    strcpy(aapl_sell_l2.symbol, "AAPL");
 
     oms::ClientOrder aapl_buy_b2{};
+    aapl_buy_b2.client_order_id = 108;
     aapl_buy_b2.price = 9500;
     aapl_buy_b2.quantity = 100;
     aapl_buy_b2.type = matching_engine::OrderType::BUY;
@@ -93,14 +101,16 @@ int main() {
     strcpy(aapl_buy_b2.symbol, "AAPL");
     
     oms::ClientOrder aapl_buy_b3{};
+    aapl_buy_b3.client_order_id = 109;
     aapl_buy_b3.price = 9400;
     aapl_buy_b3.quantity = 100;
     aapl_buy_b3.type = matching_engine::OrderType::SELL;
     aapl_buy_b3.execution_type = oms::ClientOrderType::LIMIT;
     strcpy(aapl_buy_b3.symbol, "AAPL");
 
-    //ICEBERG TEST
+    // ICEBERG TEST
     oms::ClientOrder aapl_ib_b{};
+    aapl_ib_b.client_order_id = 110;
     aapl_ib_b.price = 10000;
     aapl_ib_b.type = matching_engine::OrderType::BUY;
     aapl_ib_b.execution_type = oms::ClientOrderType::LIMIT;
@@ -108,6 +118,7 @@ int main() {
     strcpy(aapl_ib_b.symbol,"AAPL");
 
     oms::ClientOrder aapl_ib{};
+    aapl_ib.client_order_id = 111;
     aapl_ib.price = 10000;
     aapl_ib.quantity = 100;
     aapl_ib.type = matching_engine::OrderType::SELL;
@@ -117,16 +128,18 @@ int main() {
     strcpy(aapl_ib.symbol, "AAPL");
     
 
-    //---------- GROUP 1: TSLA (Symbol ID 1025) ----------
-    //LIMIT TEST
+    // ---------- GROUP 1: TSLA (Symbol ID 1025) ----------
+    // LIMIT TEST
     oms::ClientOrder tsla_sell{};
+    tsla_sell.client_order_id = 201;
     tsla_sell.price = 20000;
     tsla_sell.quantity = 100;
     tsla_sell.type = matching_engine::OrderType::SELL;
     tsla_sell.execution_type = oms::ClientOrderType::LIMIT;
-    strcpy(tsla_sell.symbol, "TSLA"); // Mapping must ensure ID 1025
+    strcpy(tsla_sell.symbol, "TSLA");
 
     oms::ClientOrder tsla_buy{};
+    tsla_buy.client_order_id = 202;
     tsla_buy.price = 20000;
     tsla_buy.quantity = 50;
     tsla_buy.type = matching_engine::OrderType::BUY;
@@ -134,21 +147,24 @@ int main() {
     strcpy(tsla_buy.symbol, "TSLA");
 
     oms::ClientOrder tsla_buy2{};
+    tsla_buy2.client_order_id = 203;
     tsla_buy2.price = 20000;
     tsla_buy2.quantity = 50;
     tsla_buy2.type = matching_engine::OrderType::BUY;
     tsla_buy2.execution_type = oms::ClientOrderType::LIMIT;
     strcpy(tsla_buy2.symbol, "TSLA");
 
-    //STOP LOSS TEST
+    // STOP LOSS TEST
     oms::ClientOrder tsla_sell_l{};
+    tsla_sell_l.client_order_id = 204;
     tsla_sell_l.price = 10000;
     tsla_sell_l.quantity = 100;
     tsla_sell_l.type = matching_engine::OrderType::SELL;
     tsla_sell_l.execution_type = oms::ClientOrderType::LIMIT;
-    strcpy(tsla_sell_l.symbol, "TSLA"); // Mapping must ensure ID 1
+    strcpy(tsla_sell_l.symbol, "TSLA");
 
     oms::ClientOrder tsla_sl_b{};
+    tsla_sl_b.client_order_id = 205;
     tsla_sl_b.price = 9400;
     tsla_sl_b.trigger_price = 9500;
     tsla_sl_b.type = matching_engine::OrderType::BUY;
@@ -157,13 +173,15 @@ int main() {
     strcpy(tsla_sl_b.symbol,"TSLA");
 
     oms::ClientOrder tsla_sell_l2{};
+    tsla_sell_l2.client_order_id = 206;
     tsla_sell_l2.price = 9500;
     tsla_sell_l2.quantity = 100;
     tsla_sell_l2.type = matching_engine::OrderType::SELL;
     tsla_sell_l2.execution_type = oms::ClientOrderType::LIMIT;
-    strcpy(tsla_sell_l2.symbol, "TSLA"); // Mapping must ensure ID 1
+    strcpy(tsla_sell_l2.symbol, "TSLA");
 
     oms::ClientOrder tsla_buy_b2{};
+    tsla_buy_b2.client_order_id = 207;
     tsla_buy_b2.price = 9500;
     tsla_buy_b2.quantity = 100;
     tsla_buy_b2.type = matching_engine::OrderType::BUY;
@@ -171,14 +189,16 @@ int main() {
     strcpy(tsla_buy_b2.symbol, "TSLA");
     
     oms::ClientOrder tsla_buy_b3{};
+    tsla_buy_b3.client_order_id = 208;
     tsla_buy_b3.price = 9400;
     tsla_buy_b3.quantity = 100;
     tsla_buy_b3.type = matching_engine::OrderType::SELL;
     tsla_buy_b3.execution_type = oms::ClientOrderType::LIMIT;
     strcpy(tsla_buy_b3.symbol, "TSLA");
 
-    //ICEBERG TEST
+    // ICEBERG TEST
     oms::ClientOrder tsla_ib_b{};
+    tsla_ib_b.client_order_id = 209;
     tsla_ib_b.price = 10000;
     tsla_ib_b.type = matching_engine::OrderType::BUY;
     tsla_ib_b.execution_type = oms::ClientOrderType::LIMIT;
@@ -186,6 +206,7 @@ int main() {
     strcpy(tsla_ib_b.symbol,"TSLA");
 
     oms::ClientOrder tsla_ib{};
+    tsla_ib.client_order_id = 210;
     tsla_ib.price = 10000;
     tsla_ib.quantity = 100;
     tsla_ib.type = matching_engine::OrderType::SELL;

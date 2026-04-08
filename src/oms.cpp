@@ -81,24 +81,25 @@ void OrderManagementSystem::listenForClientOrder() {
     while(!shutdown.load(std::memory_order_relaxed)) {
         InternalOrder out;
         while(incoming_orders.pop(new_order)) {
-            uint64_t assigned_id = next_oms_order_id.fetch_add(1, std::memory_order_relaxed);
-            new_order.client_order_id = assigned_id;
+            
             new_order.symbol_id = find_id(new_order.symbol);
             //ICEBERG
             if (new_order.execution_type == ClientOrderType::ICEBERG) {
-                std::cout<<"OMS recieved iceberg order"<<new_order.client_order_id<<"\n";
+                //std::cout<<"OMS recieved iceberg order"<<new_order.client_order_id<<"\n";
                 active_icebergs[new_order.client_order_id] = new_order;
                 send_slice(new_order.client_order_id);
             }
             //STOP LOSS
             else if (new_order.execution_type == ClientOrderType::STOP_LOSS) {
-                std::cout<<"OMS recieved SL order"<<new_order.client_order_id<<"\n";
+                //std::cout<<"OMS recieved SL order"<<new_order.client_order_id<<"\n";
                 registerStopLoss(new_order); 
             } 
             //MARKET
             else if (new_order.execution_type == ClientOrderType::MARKET) {
-                std::cout<<"OMS recieved market order"<<new_order.client_order_id<<"\n";
-                out.order_id = new_order.client_order_id;
+                //std::cout<<"OMS recieved market order"<<new_order.client_order_id<<"\n";
+                uint64_t assigned_id = next_oms_order_id.fetch_add(1, std::memory_order_relaxed);
+                out.order_id = assigned_id;
+                out.client_order_id = new_order.client_order_id;
                 out.quantity = new_order.quantity;
                 out.symbol_id = new_order.symbol_id;
                 out.timestamp = getCurrentTimestamp();
@@ -114,8 +115,10 @@ void OrderManagementSystem::listenForClientOrder() {
                     std::cerr << "Invalid LIMIT order: price = 0\n";
                     continue;
                 }
-                std::cout<<"OMS recieved limit order"<<new_order.client_order_id<<"\n";
-                out.order_id = new_order.client_order_id;
+                //std::cout<<"OMS recieved limit order"<<new_order.client_order_id<<"\n";
+                uint64_t assigned_id = next_oms_order_id.fetch_add(1, std::memory_order_relaxed);
+                out.order_id = assigned_id;
+                out.client_order_id = new_order.client_order_id;
                 out.quantity = new_order.quantity;
                 out.symbol_id = new_order.symbol_id;
                 out.timestamp = getCurrentTimestamp();
@@ -183,7 +186,9 @@ void OrderManagementSystem::checkAndTriggerSL(uint32_t sym_id, uint64_t current_
         container.sell_stops.pop_back();
 
         matching_engine::Order engine_ord;
-        engine_ord.order_id = triggered_client_ord.client_order_id;
+        uint64_t assigned_id = next_oms_order_id.fetch_add(1, std::memory_order_relaxed);
+        engine_ord.order_id = assigned_id;
+        engine_ord.client_order_id = triggered_client_ord.client_order_id;
         engine_ord.price = triggered_client_ord.price; 
         engine_ord.symbol_id = find_id(triggered_client_ord.symbol);
         engine_ord.timestamp = getCurrentTimestamp();
@@ -204,7 +209,9 @@ void OrderManagementSystem::checkAndTriggerSL(uint32_t sym_id, uint64_t current_
         container.buy_stops.pop_back();
 
         matching_engine::Order engine_ord;
-        engine_ord.order_id = triggered_client.client_order_id;
+        uint64_t assigned_id = next_oms_order_id.fetch_add(1, std::memory_order_relaxed);
+        engine_ord.order_id = assigned_id;
+        engine_ord.client_order_id = triggered_client.client_order_id;
         engine_ord.price = triggered_client.price; 
         engine_ord.symbol_id = find_id(triggered_client.symbol);
         engine_ord.timestamp = getCurrentTimestamp();
