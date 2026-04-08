@@ -1,3 +1,5 @@
+#pragma once
+
 #include "common.h"
 
 #include <poll.h>
@@ -32,6 +34,7 @@
 
 // constexpr size_t msg_per_packet = 23;
 // constexpr size_t MAX_MSG_SIZE   = msg_per_packet * sizeof(MarketDataMessage);
+namespace RT{
 constexpr size_t connection_backlog{10}; //what should it be?
 static const uint64_t SIZE{1 << 20}; // configure slot sizes to service requests for sequence numbers transmitted 1s ago
 class Retransmitter{
@@ -55,3 +58,4 @@ class Retransmitter{
         void listenerThread(); //separate thread that processes requests by clients for missing messages
         void init_batch(int cap);
 };
+}

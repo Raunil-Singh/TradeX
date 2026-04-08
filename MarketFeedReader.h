@@ -22,7 +22,7 @@
 2) Verify the network models work
 3) Come up with a way to get all the ip addresses
 */
-
+namespace MFR{
 class MarketFeedReader
 {
     private:
@@ -47,5 +47,5 @@ class MarketFeedReader
         void sendThread();
         void init_batch(batch_t*, int cap);
 };
-
+}
 #endif

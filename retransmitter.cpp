@@ -4,7 +4,7 @@
 1) Get ip for wifi and ethernet
 2) Test
 3) Find a better way to handle all setup errors*/
-
+namespace RT {
 std::atomic_bool done{false};
 // std::string get_interface_ip(const std::string& iface_name)
 // {
@@ -281,6 +281,7 @@ void Retransmitter::init_batch(int cap)
     batch.capacity = cap;
     batch.tcp_buffer = (char*) aligned_alloc(64, cap * MAX_MSG_SIZE);
     
+}
 }
 // #include <thread>
 // #include <chrono>

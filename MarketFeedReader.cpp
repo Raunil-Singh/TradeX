@@ -26,6 +26,7 @@
 //     freeifaddrs(ifaddr);
 //     throw std::runtime_error("interface not found: " + iface_name);
 // }
+namespace MFR{
 MarketFeedReader::MarketFeedReader(std::atomic_bool& flag) : flag(flag), seq_num{0}
 {
     for (int i = 0; i < TradeRingBuffer::total_ring_buffer_count; i++)
@@ -257,6 +258,7 @@ MarketDataMessage MarketFeedReader::formatMarketData(matching_engine::Trade &&tr
     out.trade_id = trade.trade_id;
     out.seq_num = seq_num++;
     return out;
+}
 }
 // matching_engine::Trade make_fake_trade(uint64_t i)
 // {

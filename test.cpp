@@ -22,11 +22,11 @@ int main() {
     // because your constructors contain blocking connect() calls.
 
     // A. MFR starts first (it is a TCP Server for RT)
-    MarketFeedReader mfr(flag); 
+    MFR::MarketFeedReader mfr(flag); 
     std::cout << "[Test] MFR Initialized and listening on 8000...\n";
 
     // B. Retransmitter starts (it is a TCP Client to MFR, and Server for Listener)
-    Retransmitter rt(flag);
+    RT::Retransmitter rt(flag);
     std::cout << "[Test] RT Connected to MFR and listening on 8080...\n";
 
     // C. Listener starts (it is a TCP Client to RT)
